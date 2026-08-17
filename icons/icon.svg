@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#14b8a6"/>
+      <stop offset="1" stop-color="#0b5e57"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#g)"/>
+  <!-- message bubble -->
+  <path d="M118 120h276a40 40 0 0 1 40 40v150a40 40 0 0 1-40 40H214l-70 60a8 8 0 0 1-13-6v-54h-13a40 40 0 0 1-40-40V160a40 40 0 0 1 40-40z" fill="#ffffff"/>
+  <!-- tooth -->
+  <path d="M256 168c-26-16-52-4-52 22 0 34 14 92 26 92 9 0 8-30 15-30h22c7 0 6 30 15 30 12 0 26-58 26-92 0-26-26-38-52-22z" fill="#0f766e"/>
+</svg>
