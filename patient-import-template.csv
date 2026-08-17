@@ -1,4 +1,4 @@
-Patient First Name,Patient Phone,Parent/Guardian First Name,Parent/Guardian Phone,Type,Notes
-Jimmy,,Susan,(555) 123-4567,child,Braces adjustment 8/1
-Maria,(555) 987-6543,,,adult,Retainer check
-Liam,(555) 222-3333,Dana,(555) 444-5555,both,Text either patient or parent
+Patient First Name,Patient Last Name,Patient Phone,Parent/Guardian First Name,Parent/Guardian Last Name,Parent/Guardian Phone,Type,Notes
+Jimmy,Miller,,Susan,Miller,(555) 123-4567,child,Braces adjustment 8/1
+Maria,Lopez,(555) 987-6543,,,,adult,Retainer check
+Liam,Chen,(555) 222-3333,Dana,Chen,(555) 444-5555,both,Text either patient or parent

@@ -66,6 +66,8 @@
   header.appbar .logo{width:30px;height:30px;flex:0 0 auto}
   header.appbar h1{font-size:1.12rem;margin:0;color:#fff;letter-spacing:.2px}
   header.appbar .tag{font-size:.72rem;opacity:.85;margin-top:1px}
+  header.appbar .help{border:0;background:rgba(255,255,255,.18);color:#fff;width:34px;height:34px;border-radius:50%;
+    font-size:1.05rem;font-weight:700;cursor:pointer;flex:0 0 auto}
   main{max-width:720px; margin:0 auto; padding:16px 16px 24px}
   .view{display:none}
   .view.active{display:block; animation:fade .18s ease}
@@ -116,7 +118,7 @@
   .hint{font-size:.76rem;color:var(--faint);margin-top:4px}
 
   /* Segmented control */
-  .seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:3px;gap:2px}
+  .seg{display:inline-flex;background:var(--surface-2);border:1px solid var(--border);border-radius:999px;padding:3px;gap:2px;flex-wrap:wrap}
   .seg button{border:0;background:transparent;color:var(--muted);padding:6px 12px;border-radius:999px;font-size:.82rem;font-weight:600;cursor:pointer}
   .seg button.on{background:var(--surface);color:var(--brand-strong);box-shadow:var(--shadow)}
 
@@ -180,8 +182,13 @@
     background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:.85rem;font-weight:600;
     box-shadow:var(--shadow);z-index:50;opacity:0;pointer-events:none;transition:opacity .2s, transform .2s;max-width:90%}
   .toast.show{opacity:1;transform:translateX(-50%) translateY(-4px)}
-  code.var{background:var(--brand-tint);color:var(--brand-strong);padding:1px 6px;border-radius:6px;font-size:.82em;font-weight:600}
+  code.var{background:var(--brand-tint);color:var(--brand-strong);padding:1px 6px;border-radius:6px;font-size:.82em;font-weight:600;white-space:nowrap}
   .link{color:var(--accent);cursor:pointer;text-decoration:underline;background:none;border:0;padding:0;font-size:inherit;font-weight:600}
+  .steps{counter-reset:s;padding:0;margin:0;list-style:none}
+  .steps > li{position:relative;padding:0 0 14px 40px;margin:0}
+  .steps > li:before{counter-increment:s;content:counter(s);position:absolute;left:0;top:0;
+    width:27px;height:27px;border-radius:50%;background:var(--brand);color:#fff;display:grid;place-items:center;font-weight:700;font-size:.85rem}
+  .steps > li b{display:block;margin-bottom:2px}
 </style>
 </head>
 <body>
@@ -195,6 +202,7 @@
     <h1>Follow-Up Machine</h1>
     <div class="tag">Personal patient check-ins, in seconds</div>
   </div>
+  <button class="help" id="helpBtn" title="How to use" aria-label="How to use">?</button>
 </header>
 
 <main>
@@ -256,12 +264,15 @@
       <button class="btn primary sm" id="addTplBtn">+ Add</button>
     </div>
     <div class="card tight small muted">
-      Use these placeholders — they fill in automatically for each person:
-      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">
-        <code class="var">{name}</code> the person you're texting
-        &nbsp;·&nbsp; <code class="var">{patient}</code> the patient's name
-        &nbsp;·&nbsp; <code class="var">{office}</code> your office name
+      Type a message once with these blanks — they fill in automatically for each person:
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px 8px">
+        <span><code class="var">{first name}</code> who you're texting</span>
+        <span><code class="var">{last name}</code></span>
+        <span><code class="var">{patient}</code> the patient</span>
+        <span><code class="var">{doctor}</code></span>
+        <span><code class="var">{office}</code></span>
       </div>
+      <div class="hint" style="margin-top:8px">Set <code class="var">{doctor}</code> &amp; <code class="var">{office}</code>, and make your own blanks, in <b>Settings</b>.</div>
     </div>
     <div id="tplList" class="list"></div>
   </section>
@@ -270,10 +281,12 @@
   <section id="view-settings" class="view">
     <h2 style="margin:0 0 12px">Settings</h2>
     <div class="card">
-      <label class="field">
-        <span>Your name / office (used by <code class="var">{office}</code>)</span>
-        <input id="setOffice" class="input" placeholder="e.g. Dr. Hodges' office" />
-      </label>
+      <div class="field-row">
+        <label class="field"><span>Doctor name — fills <code class="var">{doctor}</code></span>
+          <input id="setDoctor" class="input" placeholder="e.g. Dr. Hodges" /></label>
+        <label class="field"><span>Office name — fills <code class="var">{office}</code></span>
+          <input id="setOffice" class="input" placeholder="e.g. Hodges Orthodontics" /></label>
+      </div>
       <label class="field" style="margin-bottom:0">
         <span>Default country code for phone numbers</span>
         <select id="setCC" class="input">
@@ -286,9 +299,24 @@
       </label>
     </div>
 
+    <!-- Custom variables -->
+    <div class="card">
+      <h3>Your own blanks (custom variables)</h3>
+      <p class="muted small">Make reusable fill-ins for anything you type a lot — a booking link, a phone number, a sign-off. Then drop them into messages as <code class="var">{your name}</code>.</p>
+      <div id="varList" class="list" style="margin:10px 0"></div>
+      <div class="field-row">
+        <label class="field" style="margin:0"><span>Name of the blank</span>
+          <input id="varKey" class="input" placeholder="e.g. booking link" /></label>
+        <label class="field" style="margin:0"><span>What it fills in</span>
+          <input id="varVal" class="input" placeholder="e.g. hodgesortho.com/book" /></label>
+      </div>
+      <div class="hint" id="varHint"></div>
+      <button class="btn sm" id="addVarBtn" style="margin-top:8px">+ Add variable</button>
+    </div>
+
     <div class="card">
       <h3>Your data</h3>
-      <p class="muted small">Everything lives only on this device — nothing is uploaded anywhere. Back up or move to another device with these:</p>
+      <p class="muted small">Everything lives only on this device — nothing is uploaded anywhere. Back up, or move to another device, with these:</p>
       <div class="row wrap">
         <button class="btn sm" id="backupBtn">⬇ Back up all data</button>
         <button class="btn sm" id="restoreBtn">⬆ Restore from backup</button>
@@ -302,6 +330,7 @@
       <h3 style="color:var(--text)">Tips</h3>
       <p>• On <b>iPhone</b>, each text opens in Messages already filled in — just tap the blue arrow to send as iMessage.</p>
       <p>• Add this page to your Home Screen (Share → <b>Add to Home Screen</b>) so it opens like an app.</p>
+      <p>• Tap the <b>?</b> at the top any time for a quick walkthrough.</p>
       <p>• A quick “checking in” text is fine, but avoid specific medical details in a text, and honor anyone who asks to stop.</p>
       <p class="faint" id="verLine" style="margin-top:10px"></p>
     </div>
@@ -337,10 +366,12 @@
     </div>
     <div class="sheet-body">
       <input type="hidden" id="c_id" />
-      <label class="field">
-        <span>Patient first name</span>
-        <input id="c_patientFirst" class="input" placeholder="e.g. Jimmy" required />
-      </label>
+      <div class="field-row">
+        <label class="field"><span>Patient first name</span>
+          <input id="c_patientFirst" class="input" placeholder="e.g. Jimmy" required /></label>
+        <label class="field"><span>Patient last name</span>
+          <input id="c_patientLast" class="input" placeholder="e.g. Miller" /></label>
+      </div>
 
       <div class="field">
         <span style="display:block;font-size:.8rem;font-weight:600;color:var(--muted);margin-bottom:5px">Who do you usually text?</span>
@@ -356,9 +387,11 @@
         <div class="field-row">
           <label class="field"><span>Parent / guardian first name</span>
             <input id="c_guardianFirst" class="input" placeholder="e.g. Susan" /></label>
-          <label class="field"><span>Parent / guardian phone</span>
-            <input id="c_guardianPhone" class="input" type="tel" inputmode="tel" placeholder="(555) 123-4567" /></label>
+          <label class="field"><span>Parent / guardian last name</span>
+            <input id="c_guardianLast" class="input" placeholder="e.g. Miller" /></label>
         </div>
+        <label class="field"><span>Parent / guardian phone</span>
+          <input id="c_guardianPhone" class="input" type="tel" inputmode="tel" placeholder="(555) 123-4567" /></label>
       </div>
       <div id="patientPhoneFields">
         <label class="field"><span>Patient phone</span>
@@ -389,13 +422,9 @@
       <label class="field"><span>Name this message (only you see it)</span>
         <input id="t_title" class="input" placeholder="e.g. Post-adjustment check-in" required /></label>
       <label class="field"><span>Message</span>
-        <textarea id="t_body" class="input" placeholder="Hi {name}, this is {office} just checking in on {patient} after the last visit — how are things feeling?"></textarea></label>
-      <div class="row wrap small" style="gap:6px">
-        <span class="muted">Insert:</span>
-        <button type="button" class="btn ghost sm" data-ins="{name}">{name}</button>
-        <button type="button" class="btn ghost sm" data-ins="{patient}">{patient}</button>
-        <button type="button" class="btn ghost sm" data-ins="{office}">{office}</button>
-      </div>
+        <textarea id="t_body" class="input" placeholder="Hi {first name}, this is {doctor} at {office} checking in on {patient} after the last visit — how are things feeling?"></textarea></label>
+      <div class="hint" style="margin-bottom:4px">Tap to insert a blank:</div>
+      <div id="t_vars"></div>
       <div class="spacer"></div>
       <div class="hint">Preview</div>
       <div id="t_preview" class="msg-preview small"></div>
@@ -418,12 +447,36 @@
   <div class="sheet-body" id="sendBody"></div>
 </dialog>
 
+<!-- ============ HELP DIALOG ============ -->
+<dialog id="helpDialog">
+  <div class="sheet-head">
+    <h2>How to use it</h2>
+    <button type="button" class="x" data-close>×</button>
+  </div>
+  <div class="sheet-body">
+    <p class="muted small" style="margin-top:0">Sends personalized check-in texts to patients — one message, everyone gets their own. You never copy-paste a name again.</p>
+    <ol class="steps" style="margin-top:14px">
+      <li><b>Add your patients</b><span class="small muted">Patients tab → <b>+ Add</b>. Enter their name, choose whether you text a parent, the patient, or either, and add the phone number(s). Have a list? Use <b>Import CSV</b>.</span></li>
+      <li><b>Write your messages</b><span class="small muted">Messages tab → <b>+ Add</b>. Type it once and tap the blanks — <code class="var">{first name}</code>, <code class="var">{patient}</code>, <code class="var">{doctor}</code>, <code class="var">{office}</code> — they fill in for each person. Set the doctor/office names (and make your own blanks) in Settings.</span></li>
+      <li><b>Send</b><span class="small muted">Send tab → pick a message → check who gets it → <b>Start sending</b>. On iPhone, each text opens in Messages ready to go — tap the blue arrow. On a Mac you can auto-send the whole batch (see below).</span></li>
+    </ol>
+    <div class="card tight" style="margin-bottom:0">
+      <b class="small">Zero-tap on a Mac</b>
+      <p class="small muted" style="margin:4px 0 0">On the send screen tap <b>“Have a Mac? Download a file…”</b>, then run the included <code>send-imessages</code> script once — the whole batch sends itself. Full steps are in the README.</p>
+    </div>
+  </div>
+  <div class="sheet-foot">
+    <span class="grow"></span>
+    <button type="button" class="btn primary" data-close>Got it</button>
+  </div>
+</dialog>
+
 <div id="toast" class="toast"></div>
 
 <script>
 "use strict";
 (function(){
-  const VERSION = "1.0.0";
+  const VERSION = "1.1.0";
   const KEY = "fum.v1";
   const $ = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
@@ -437,20 +490,31 @@
   /* ---------- data ---------- */
   const DEFAULT_TEMPLATES = [
     {id:uid(), title:"Post-adjustment check-in (parent)",
-     body:"Hi {name}, {office} checking in on {patient} after the recent adjustment — any soreness or questions, just let us know! 😊"},
+     body:"Hi {first name}, {office} checking in on {patient} after the recent adjustment — any soreness or questions, just let us know! 😊"},
     {id:uid(), title:"Post-adjustment check-in (adult)",
-     body:"Hi {name}, {office} checking in after your recent adjustment — how are things feeling? Reply anytime if you have questions!"},
+     body:"Hi {first name}, {office} checking in after your recent adjustment — how are things feeling? Reply anytime if you have questions!"},
     {id:uid(), title:"Missed appointment",
-     body:"Hi {name}, we missed {patient} at today's appointment — no worries, just reply here and we'll get you rescheduled. 🦷"}
+     body:"Hi {first name}, we missed {patient} at today's appointment — no worries, just reply here and we'll get you rescheduled. 🦷"}
   ];
 
   let state = load();
   function load(){
-    try{
-      const raw = JSON.parse(localStorage.getItem(KEY));
-      if(raw && raw.contacts && raw.templates){ return raw; }
-    }catch(e){}
-    return { contacts:[], templates:DEFAULT_TEMPLATES, settings:{office:"", cc:"1"} };
+    let data;
+    try{ const raw=JSON.parse(localStorage.getItem(KEY)); if(raw && raw.contacts && raw.templates) data=raw; }catch(e){}
+    if(!data) data = { contacts:[], templates:DEFAULT_TEMPLATES.map(t=>({...t})), settings:{} };
+    // normalize / migrate so older saves & backups keep working
+    const s = data.settings = data.settings || {};
+    if(s.office==null) s.office="";
+    if(s.doctor==null) s.doctor="";
+    if(s.cc==null) s.cc="1";
+    if(!Array.isArray(s.variables)) s.variables=[];
+    data.contacts = (data.contacts||[]).map(c=>({
+      id:c.id||uid(),
+      patientFirst:c.patientFirst||"", patientLast:c.patientLast||"", patientPhone:c.patientPhone||"",
+      guardianFirst:c.guardianFirst||"", guardianLast:c.guardianLast||"", guardianPhone:c.guardianPhone||"",
+      type:c.type||"child", notes:c.notes||""
+    }));
+    return data;
   }
   function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
 
@@ -473,21 +537,54 @@
     if(!p.startsWith("+")&&d.length===10){return `(${d.slice(0,3)}) ${d.slice(3,6)}-${d.slice(6)}`;}
     return p;
   }
-  function fill(body, ctx){
-    return (body||"")
-      .replace(/\{name\}/gi, ctx.name||"")
-      .replace(/\{patient\}/gi, ctx.patient||"")
-      .replace(/\{office\}/gi, state.settings.office||"")
-      .replace(/[ \t]{2,}/g," ").trim();
+  const fullName = (f,l)=>((f||"")+" "+(l||"")).replace(/\s+/g," ").trim();
+
+  /* ---------- variables / fill ---------- */
+  function varKeyNorm(k){ return (k||"").toLowerCase().replace(/[{}]/g,"").replace(/\s+/g," ").trim(); }
+  const RESERVED = ["name","first name","first","last name","last","full name",
+    "patient","patient name","patient first name","patient first","patient last name","patient last","patient full name",
+    "doctor","office"];
+  function varMap(ctx){
+    const s=state.settings||{};
+    const rf=(ctx.rFirst||"").trim(), rl=(ctx.rLast||"").trim();
+    const pf=(ctx.pFirst||"").trim(), pl=(ctx.pLast||"").trim();
+    const greet = rf || "there";
+    const m={
+      "name":greet, "first name":greet, "first":greet,
+      "last name":rl, "last":rl,
+      "full name":fullName(rf,rl),
+      "patient":pf, "patient name":pf, "patient first name":pf, "patient first":pf,
+      "patient last name":pl, "patient last":pl,
+      "patient full name":fullName(pf,pl),
+      "doctor":(s.doctor||"").trim(), "office":(s.office||"").trim()
+    };
+    (s.variables||[]).forEach(v=>{ const k=varKeyNorm(v.key); if(k && !(k in m)) m[k]=(v.value||""); });
+    // custom vars may also override built-ins intentionally? keep built-ins authoritative.
+    (s.variables||[]).forEach(v=>{ const k=varKeyNorm(v.key); if(k && !RESERVED.includes(k)) m[k]=(v.value||""); });
+    return m;
   }
-  // Build the list of who a contact can be sent to
+  function applyMap(body,m){
+    return (body||"").replace(/\{([^{}]+)\}/g,(full,inner)=>{
+      const k=varKeyNorm(inner);
+      return (k in m) ? m[k] : full;   // unknown token → leave literal so typos are visible
+    }).replace(/[ \t]{2,}/g," ").replace(/ +([,.!?;:])/g,"$1").trim();
+  }
+  function fill(body,ctx){ return applyMap(body, varMap(ctx)); }
+  function fillPreview(body){
+    const m=varMap({rFirst:"Susan",rLast:"Miller",pFirst:"Jimmy",pLast:"Miller"});
+    if(!m["office"]) m["office"]="[your office]";
+    if(!m["doctor"]) m["doctor"]="[doctor]";
+    return applyMap(body,m);
+  }
+
+  // Who a contact can be texted
   function targetsFor(c){
     const out = [];
     if(c.type==="adult" || c.type==="both"){
-      out.push({key:"patient", label:c.patientFirst||"Patient", name:c.patientFirst, phone:c.patientPhone});
+      out.push({key:"patient", name:c.patientFirst, first:c.patientFirst, last:c.patientLast, phone:c.patientPhone});
     }
     if(c.type==="child" || c.type==="both"){
-      out.push({key:"guardian", label:(c.guardianFirst? c.guardianFirst : "Parent")+" (parent)", name:c.guardianFirst, phone:c.guardianPhone});
+      out.push({key:"guardian", name:c.guardianFirst, first:c.guardianFirst, last:c.guardianLast, phone:c.guardianPhone});
     }
     return out;
   }
@@ -496,7 +593,6 @@
   function messageURL(phone, body){
     const num = (phone||"").replace(/[^\d+]/g,"");
     const enc = encodeURIComponent(body||"");
-    // iOS wants &body; keep a ? so parsers are happy across platforms.
     return `sms:${num}${isAppleDevice ? "&" : "?"}body=${enc}`;
   }
 
@@ -525,6 +621,7 @@
     if(tab==="templates") renderTemplates();
   }
   $$("nav.tabbar button").forEach(b=>b.addEventListener("click",()=>showTab(b.dataset.tab)));
+  $("#helpBtn").addEventListener("click",()=>$("#helpDialog").showModal());
 
   /* ================= CONTACTS ================= */
   const contactDialog = $("#contactDialog");
@@ -533,7 +630,6 @@
   function setCType(v){
     cTypeVal = v;
     $$("#c_type button").forEach(b=>b.classList.toggle("on", b.dataset.v===v));
-    // Show relevant phone fields
     $("#guardianFields").style.display = (v==="child"||v==="both") ? "" : "none";
     $("#patientPhoneFields").style.display = (v==="adult"||v==="both") ? "" : "none";
   }
@@ -544,9 +640,11 @@
     $("#c_id").value = c?c.id:"";
     $("#contactDlgTitle").textContent = c ? "Edit patient" : "Add patient";
     $("#c_patientFirst").value = c?c.patientFirst||"":"";
+    $("#c_patientLast").value  = c?c.patientLast||"":"";
     $("#c_patientPhone").value = c?c.patientPhone||"":"";
-    $("#c_guardianFirst").value = c?c.guardianFirst||"":"";
-    $("#c_guardianPhone").value = c?c.guardianPhone||"":"";
+    $("#c_guardianFirst").value= c?c.guardianFirst||"":"";
+    $("#c_guardianLast").value = c?c.guardianLast||"":"";
+    $("#c_guardianPhone").value= c?c.guardianPhone||"":"";
     $("#c_notes").value = c?c.notes||"":"";
     setCType(c?c.type||"child":"child");
     $("#deleteContactBtn").style.display = c ? "" : "none";
@@ -559,9 +657,11 @@
     const rec = {
       id: id||uid(),
       patientFirst: $("#c_patientFirst").value.trim(),
+      patientLast:  $("#c_patientLast").value.trim(),
       patientPhone: normalizePhone($("#c_patientPhone").value),
-      guardianFirst: $("#c_guardianFirst").value.trim(),
-      guardianPhone: normalizePhone($("#c_guardianPhone").value),
+      guardianFirst:$("#c_guardianFirst").value.trim(),
+      guardianLast: $("#c_guardianLast").value.trim(),
+      guardianPhone:normalizePhone($("#c_guardianPhone").value),
       type: cTypeVal,
       notes: $("#c_notes").value.trim()
     };
@@ -581,7 +681,7 @@
 
   function contactMatches(c,q){
     if(!q) return true; q=q.toLowerCase();
-    return [c.patientFirst,c.guardianFirst,c.patientPhone,c.guardianPhone,c.notes]
+    return [c.patientFirst,c.patientLast,c.guardianFirst,c.guardianLast,c.patientPhone,c.guardianPhone,c.notes]
       .some(v=>(v||"").toLowerCase().includes(q));
   }
   function typePill(t){
@@ -601,12 +701,13 @@
       return;
     }
     list.innerHTML = items.map(c=>{
-      const g = c.guardianFirst||c.guardianPhone ? `<div class="small muted">Parent: ${esc(c.guardianFirst||"—")}${c.guardianPhone?" · "+esc(prettyPhone(c.guardianPhone)):""}</div>`:"";
+      const gName = fullName(c.guardianFirst,c.guardianLast);
+      const g = (gName||c.guardianPhone) ? `<div class="small muted">Parent: ${esc(gName||"—")}${c.guardianPhone?" · "+esc(prettyPhone(c.guardianPhone)):""}</div>`:"";
       const p = c.patientPhone ? `<div class="small muted">Patient: ${esc(prettyPhone(c.patientPhone))}</div>`:"";
       return `<div class="item" data-id="${c.id}">
         <div class="top">
           <div class="grow">
-            <div class="row" style="gap:8px"><span class="name">${esc(c.patientFirst)}</span>${typePill(c.type)}</div>
+            <div class="row" style="gap:8px"><span class="name">${esc(fullName(c.patientFirst,c.patientLast))}</span>${typePill(c.type)}</div>
             ${p}${g}
             ${c.notes?`<div class="small faint" style="margin-top:3px">${esc(c.notes)}</div>`:""}
           </div>
@@ -623,6 +724,30 @@
 
   /* ================= TEMPLATES ================= */
   const tplDialog=$("#tplDialog");
+
+  function chipBtn(tok){ return `<button type="button" class="btn ghost sm" data-ins="{${tok}}" style="font-weight:600">{${tok}}</button>`; }
+  function renderTplVars(){
+    const cont=$("#t_vars"); if(!cont) return;
+    const custom=(state.settings.variables||[]).map(v=>v.key);
+    const groups=[
+      ["Person you're texting", ["first name","last name","full name"]],
+      ["The patient", ["patient","patient last name"]],
+      ["Your practice", ["doctor","office"]]
+    ];
+    let html=groups.map(([label,toks])=>`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0">
+       <span class="small faint" style="width:100%;font-weight:700">${label}</span>${toks.map(chipBtn).join("")}</div>`).join("");
+    html+=`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0">
+       <span class="small faint" style="width:100%;font-weight:700">Your variables</span>
+       ${custom.length?custom.map(chipBtn).join(""):'<span class="small faint">none yet — add them in Settings</span>'}</div>`;
+    cont.innerHTML=html;
+    $$("#t_vars [data-ins]").forEach(b=>b.addEventListener("click",()=>insertTpl(b.dataset.ins)));
+  }
+  function insertTpl(ins){
+    const ta=$("#t_body");
+    const s=ta.selectionStart??ta.value.length, e=ta.selectionEnd??ta.value.length;
+    ta.value=ta.value.slice(0,s)+ins+ta.value.slice(e);
+    ta.focus(); ta.selectionStart=ta.selectionEnd=s+ins.length; updateTplPreview();
+  }
   function openTpl(t){
     $("#tplForm").reset();
     $("#t_id").value=t?t.id:"";
@@ -630,20 +755,14 @@
     $("#t_title").value=t?t.title:"";
     $("#t_body").value=t?t.body:"";
     $("#deleteTplBtn").style.display=t?"":"none";
+    renderTplVars();
     updateTplPreview();
     tplDialog.showModal();
   }
   function updateTplPreview(){
-    const sample={name:"Susan", patient:"Jimmy"};
-    $("#t_preview").textContent = fill($("#t_body").value, sample) || "Your message preview appears here.";
+    $("#t_preview").textContent = fillPreview($("#t_body").value) || "Your message preview appears here.";
   }
   $("#t_body").addEventListener("input",updateTplPreview);
-  $$("#tplForm [data-ins]").forEach(b=>b.addEventListener("click",()=>{
-    const ta=$("#t_body"); const ins=b.dataset.ins;
-    const s=ta.selectionStart??ta.value.length, e=ta.selectionEnd??ta.value.length;
-    ta.value=ta.value.slice(0,s)+ins+ta.value.slice(e);
-    ta.focus(); ta.selectionStart=ta.selectionEnd=s+ins.length; updateTplPreview();
-  }));
   $("#addTplBtn").addEventListener("click",()=>openTpl(null));
   $("#tplForm").addEventListener("submit",e=>{
     e.preventDefault();
@@ -683,8 +802,7 @@
   }
 
   /* ================= COMPOSE / SEND ================= */
-  // selection map: contactId -> targetKey ("patient" | "guardian" | "both")
-  let selection = {};
+  let selection = {}; // contactId -> "patient" | "guardian" | "both"
 
   function populateTplSelect(){
     const sel=$("#tplSelect");
@@ -699,7 +817,7 @@
     const t=currentTpl(); const box=$("#tplPreview"); const hint=$("#tplPreviewHint");
     if(!t){ box.style.display="none"; hint.style.display="none"; return; }
     box.style.display=""; hint.style.display="";
-    box.textContent = fill(t.body,{name:"Susan",patient:"Jimmy"});
+    box.textContent = fillPreview(t.body);
     hint.textContent = "Preview with sample names — real names fill in per person.";
   }
   $("#tplSelect").addEventListener("change",updateComposePreview);
@@ -719,7 +837,7 @@
       const on = selection[c.id]!==undefined;
       const targets=targetsFor(c);
       const sub = targets.map(t=>{
-        const who = t.key==='guardian' ? `${esc(t.name||'Parent')} <span class="faint">(parent)</span>` : esc(t.name||'Patient');
+        const who = t.key==='guardian' ? `${esc(t.first||'Parent')} <span class="faint">(parent)</span>` : esc(t.first||'Patient');
         return `to ${who}${t.phone?"":' <span class="pill child">no #</span>'}`;
       }).join(" · ");
       let targetUI="";
@@ -735,7 +853,7 @@
         <div class="selectable ${on?'on':''}" data-sel="${c.id}">
           <span class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
           <span class="grow">
-            <span class="name">${esc(c.patientFirst)}</span> ${typePill(c.type)}
+            <span class="name">${esc(fullName(c.patientFirst,c.patientLast))}</span> ${typePill(c.type)}
             <div class="small muted">${sub||'<span class="pill child">no phone saved</span>'}</div>
           </span>
         </div>
@@ -778,9 +896,9 @@
         const tgt=targetsFor(c).find(x=>x.key===key); if(!tgt) return;
         q.push({
           contactId:c.id, key, patientName:c.patientFirst,
-          name: tgt.name || (key==="guardian"?"there":c.patientFirst),
+          name: tgt.first || (key==="guardian"?"there":c.patientFirst),
           phone: tgt.phone,
-          body: fill(t.body,{name: tgt.name||(key==="guardian"?"there":c.patientFirst), patient:c.patientFirst}),
+          body: fill(t.body,{rFirst:tgt.first, rLast:tgt.last, pFirst:c.patientFirst, pLast:c.patientLast}),
           status:"pending"
         });
       });
@@ -790,8 +908,7 @@
   function updateStartBtn(){
     const n=Object.keys(selection).length;
     const btn=$("#startSendBtn");
-    const hasTpl=!!currentTpl();
-    btn.disabled = n===0 || !hasTpl;
+    btn.disabled = n===0 || !currentTpl();
     btn.textContent = n===0 ? "Start sending" : `Start sending (${buildQueue().length})`;
   }
   $("#startSendBtn").addEventListener("click",openSendQueue);
@@ -803,7 +920,6 @@
   function openSendQueue(){
     queue=buildQueue();
     if(queue.length===0) return;
-    // start at first pending with a phone, else first
     qi = 0; awaiting=-1;
     renderQueue();
     sendDialog.showModal();
@@ -864,11 +980,10 @@
       </div>`;
     }
 
-    // full list
     const rows = queue.map((q,i)=>`
       <div class="qrow">
         <span class="status-dot ${statusClass(i)}"></span>
-        <span class="grow ${i===qi&&!allDone?'':''}"><b>${esc(q.name)}</b>
+        <span class="grow"><b>${esc(q.name)}</b>
           <span class="small muted">${q.key==="guardian"?"· parent":""} ${esc(prettyPhone(q.phone))}</span></span>
         <span class="small ${q.status==='sent'?'':'muted'}" style="${q.status==='sent'?'color:var(--ok);font-weight:700':''}">
           ${q.status==="sent"?"Sent":q.status==="skip"?"Skipped":(i===qi&&!allDone?"Now":"Waiting")}</span>
@@ -883,10 +998,9 @@
          </div>
        </div>`;
 
-    // wire controls
     const mx=$("#macExport"); if(mx) mx.addEventListener("click",exportMacSendFile);
     const goEl=$("#sendGo");
-    if(goEl) goEl.addEventListener("click",()=>{ awaiting=qi; /* let it navigate */ });
+    if(goEl) goEl.addEventListener("click",()=>{ awaiting=qi; });
     const cm=$("#copyMsg"); if(cm) cm.addEventListener("click",async()=>{await copyText(queue[qi].body); toast("Message copied");});
     const cn=$("#copyNum"); if(cn) cn.addEventListener("click",async()=>{await copyText(queue[qi].phone); toast("Number copied");});
     const sk=$("#skipBtn"); if(sk) sk.addEventListener("click",()=>{ queue[qi].status="skip"; advance(); });
@@ -903,29 +1017,23 @@
   }
 
   function advance(){
-    // go to next pending
     let next=-1;
     for(let i=qi+1;i<queue.length;i++){ if(queue[i].status==="pending"){ next=i; break; } }
     if(next===-1){ for(let i=0;i<queue.length;i++){ if(queue[i].status==="pending"){ next=i; break; } } }
     if(next!==-1) qi=next;
     renderQueue();
   }
-  // When user returns from Messages, auto-mark the one they were sending & advance.
   document.addEventListener("visibilitychange",()=>{
     if(document.visibilityState==="visible" && awaiting>-1 && sendDialog.open){
       if(queue[awaiting] && queue[awaiting].status==="pending"){ queue[awaiting].status="sent"; }
-      awaiting=-1;
-      // move current pointer if it was the one sent
-      if(qi===undefined) qi=0;
-      advance();
-      toast("Marked as sent");
+      awaiting=-1; advance(); toast("Marked as sent");
     }
   });
 
   /* ---------- dialog close wiring ---------- */
   $$("[data-close]").forEach(b=>b.addEventListener("click",()=>b.closest("dialog").close()));
   $$("[data-close-send]").forEach(b=>b.addEventListener("click",()=>sendDialog.close()));
-  sendDialog.addEventListener("close",()=>{ /* keep selection so they can continue */ renderCompose(); });
+  sendDialog.addEventListener("close",()=>{ renderCompose(); });
 
   /* ================= CSV import / export ================= */
   function parseCSV(text){
@@ -962,24 +1070,32 @@
         if(rows.length<2){ toast("That file looks empty"); return; }
         const H=rows[0];
         const ci={
-          pf: colIndex(H,["patient first","patient name","first name","patient","name"]),
+          pf: colIndex(H,["patient first","first name","patient name","patient","name"]),
+          pl: colIndex(H,["patient last","last name"]),
           pp: colIndex(H,["patient phone","patient cell","patient mobile"]),
-          gf: colIndex(H,["parent first","guardian first","parent name","guardian name","parent"]),
+          gf: colIndex(H,["parent first","guardian first","parent name","guardian name","parent","guardian"]),
+          gl: colIndex(H,["parent last","guardian last"]),
           gp: colIndex(H,["parent phone","guardian phone","parent cell","guardian cell"]),
           ty: colIndex(H,["type","adult","child"]),
           no: colIndex(H,["note"])
         };
         if(ci.pf===-1){ toast("Couldn't find a patient name column"); return; }
+        const pfHeader=(H[ci.pf]||"").toLowerCase();
+        const pfIsFull = pfHeader.includes("name") && !pfHeader.includes("first");
         let added=0;
         rows.slice(1).forEach(r=>{
           const g=(i)=>i>-1?(r[i]||"").trim():"";
-          const pf=g(ci.pf); if(!pf) return;
+          let pFirst=g(ci.pf), pLast=g(ci.pl);
+          if(pfIsFull && ci.pl===-1 && pFirst.includes(" ")){ // split "First Last"
+            const parts=pFirst.split(/\s+/); pFirst=parts.shift(); pLast=parts.join(" ");
+          }
+          if(!pFirst) return;
           let type=g(ci.ty).toLowerCase();
           type = type.startsWith("a")?"adult":type.startsWith("b")?"both":"child";
           state.contacts.push({
-            id:uid(), patientFirst:pf,
+            id:uid(), patientFirst:pFirst, patientLast:pLast,
             patientPhone:normalizePhone(g(ci.pp)),
-            guardianFirst:g(ci.gf), guardianPhone:normalizePhone(g(ci.gp)),
+            guardianFirst:g(ci.gf), guardianLast:g(ci.gl), guardianPhone:normalizePhone(g(ci.gp)),
             type, notes:g(ci.no)
           });
           added++;
@@ -998,29 +1114,82 @@
     const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click();
     setTimeout(()=>{document.body.removeChild(a); URL.revokeObjectURL(url);},100);
   }
+  const CSV_HEADERS=["Patient First Name","Patient Last Name","Patient Phone","Parent/Guardian First Name","Parent/Guardian Last Name","Parent/Guardian Phone","Type","Notes"];
   $("#exportCsvBtn").addEventListener("click",()=>{
-    const H=["Patient First Name","Patient Phone","Parent/Guardian First Name","Parent/Guardian Phone","Type","Notes"];
-    const lines=[H.join(",")].concat(state.contacts.map(c=>
-      [c.patientFirst,c.patientPhone,c.guardianFirst,c.guardianPhone,c.type,c.notes].map(csvEscape).join(",")));
+    const lines=[CSV_HEADERS.join(",")].concat(state.contacts.map(c=>
+      [c.patientFirst,c.patientLast,c.patientPhone,c.guardianFirst,c.guardianLast,c.guardianPhone,c.type,c.notes].map(csvEscape).join(",")));
     download("patients.csv", lines.join("\n"), "text/csv");
     toast("Exported patients.csv");
   });
   $("#csvTemplateBtn").addEventListener("click",()=>{
     const text=
-`Patient First Name,Patient Phone,Parent/Guardian First Name,Parent/Guardian Phone,Type,Notes
-Jimmy,,Susan,(555) 123-4567,child,Braces adjustment 8/1
-Maria,(555) 987-6543,,,adult,Retainer check
-Liam,(555) 222-3333,Dana,(555) 444-5555,both,Text either`;
+`${CSV_HEADERS.join(",")}
+Jimmy,Miller,,Susan,Miller,(555) 123-4567,child,Braces adjustment 8/1
+Maria,Lopez,(555) 987-6543,,,,adult,Retainer check
+Liam,Chen,(555) 222-3333,Dana,Chen,(555) 444-5555,both,Text either`;
     download("patient-import-template.csv", text, "text/csv");
     toast("Template downloaded");
   });
 
   /* ================= SETTINGS ================= */
   $("#setOffice").value=state.settings.office||"";
+  $("#setDoctor").value=state.settings.doctor||"";
   $("#setCC").value=state.settings.cc||"";
   $("#setOffice").addEventListener("input",e=>{state.settings.office=e.target.value; save();});
+  $("#setDoctor").addEventListener("input",e=>{state.settings.doctor=e.target.value; save();});
   $("#setCC").addEventListener("change",e=>{state.settings.cc=e.target.value; save();});
   $("#verLine").textContent="Follow-Up Machine v"+VERSION+" · your data stays on this device";
+
+  /* ---- custom variables manager ---- */
+  let editingVarId=null;
+  function updateVarHint(){
+    const k=varKeyNorm($("#varKey").value);
+    $("#varHint").innerHTML = k
+      ? `Use it in a message as <code class="var">{${esc(k)}}</code>.`
+      : `Give it a short name like <b>booking link</b>, then use <code class="var">{booking link}</code> in your messages.`;
+  }
+  function renderVars(){
+    const list=$("#varList");
+    const vs=state.settings.variables||[];
+    if(!vs.length){ list.innerHTML=`<div class="small faint">No custom variables yet.</div>`; return; }
+    list.innerHTML=vs.map(v=>`<div class="item" data-vid="${v.id}" style="padding:11px 12px">
+      <div class="row">
+        <div class="grow"><code class="var">{${esc(v.key)}}</code>
+          <div class="small muted" style="margin-top:3px;word-break:break-word">${esc(v.value)||'<span class="faint">(empty)</span>'}</div></div>
+        <button class="btn ghost sm varEdit">Edit</button>
+        <button class="btn ghost sm varDel" style="color:var(--danger)">Delete</button>
+      </div></div>`).join("");
+    $$("#varList .varEdit").forEach(b=>b.addEventListener("click",e=>{
+      const id=e.target.closest("[data-vid]").dataset.vid;
+      const v=state.settings.variables.find(x=>x.id===id); if(!v) return;
+      editingVarId=id; $("#varKey").value=v.key; $("#varVal").value=v.value;
+      $("#addVarBtn").textContent="Save variable"; updateVarHint(); $("#varKey").focus();
+    }));
+    $$("#varList .varDel").forEach(b=>b.addEventListener("click",e=>{
+      const id=e.target.closest("[data-vid]").dataset.vid;
+      state.settings.variables=state.settings.variables.filter(x=>x.id!==id);
+      if(editingVarId===id){ editingVarId=null; $("#varKey").value=""; $("#varVal").value=""; $("#addVarBtn").textContent="+ Add variable"; }
+      save(); renderVars(); renderTplVars(); toast("Deleted");
+    }));
+  }
+  $("#varKey").addEventListener("input",updateVarHint);
+  $("#addVarBtn").addEventListener("click",()=>{
+    const key=varKeyNorm($("#varKey").value);
+    const value=$("#varVal").value;
+    if(!key){ toast("Enter a name for the blank"); return; }
+    if(RESERVED.includes(key)){ toast("That one's built-in — pick another name"); return; }
+    const vs=state.settings.variables;
+    if(editingVarId){
+      const v=vs.find(x=>x.id===editingVarId); if(v){ v.key=key; v.value=value; }
+      editingVarId=null;
+    } else {
+      const existing=vs.find(x=>varKeyNorm(x.key)===key);
+      if(existing) existing.value=value; else vs.push({id:uid(), key, value});
+    }
+    save();
+    $("#varKey").value=""; $("#varVal").value=""; $("#addVarBtn").textContent="+ Add variable";
+    updateVarHint(); renderVars(); renderTplVars(); toast("Saved");
+  });
 
   $("#backupBtn").addEventListener("click",()=>{
     download("followup-backup-"+new Date().toISOString().slice(0,10)+".json", JSON.stringify(state,null,2), "application/json");
@@ -1035,8 +1204,9 @@ Liam,(555) 222-3333,Dana,(555) 444-5555,both,Text either`;
         const data=JSON.parse(String(r.result));
         if(!data.contacts||!data.templates) throw 0;
         if(confirm("Replace everything on this device with this backup?")){
-          state=data; if(!state.settings) state.settings={office:"",cc:"1"};
-          save(); syncSettingsUI(); renderContacts(); renderTemplates(); populateTplSelect();
+          localStorage.setItem(KEY, JSON.stringify(data));
+          state=load(); // re-run through migration/normalize
+          selection={}; syncSettingsUI(); renderVars(); renderContacts(); renderTemplates(); populateTplSelect();
           toast("Backup restored");
         }
       }catch(err){ toast("That file isn't a valid backup"); }
@@ -1047,18 +1217,21 @@ Liam,(555) 222-3333,Dana,(555) 444-5555,both,Text either`;
   $("#wipeBtn").addEventListener("click",()=>{
     if(confirm("Erase all patients, messages and settings on this device? This cannot be undone.")){
       localStorage.removeItem(KEY); state=load(); selection={};
-      syncSettingsUI(); renderContacts(); renderTemplates(); populateTplSelect(); toast("Erased");
+      syncSettingsUI(); renderVars(); renderContacts(); renderTemplates(); populateTplSelect(); toast("Erased");
     }
   });
-  function syncSettingsUI(){ $("#setOffice").value=state.settings.office||""; $("#setCC").value=state.settings.cc||""; }
+  function syncSettingsUI(){
+    $("#setOffice").value=state.settings.office||"";
+    $("#setDoctor").value=state.settings.doctor||"";
+    $("#setCC").value=state.settings.cc||"";
+  }
 
   /* ================= init ================= */
+  updateVarHint();
+  renderVars();
   populateTplSelect();
   renderCompose();
-  // service worker for offline / app feel (optional; ignore if unsupported)
-  if("serviceWorker" in navigator){
-    navigator.serviceWorker.register("sw.js").catch(()=>{});
-  }
+  if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
 })();
 </script>
 </body>

@@ -1,154 +1,137 @@
 # Follow-Up Machine 🦷💬
 
 A dead-simple tool for sending **personalized follow-up texts to patients** in
-seconds — right from your own phone (or computer), as normal iMessages/texts.
+seconds — right from your own phone (or Mac), as normal iMessages/texts.
 
 Built for the "it takes me 20 minutes of copy-pasting to text 5–6 patients"
-problem. With this, that same batch takes about a minute.
+problem. With this, that same batch takes about a minute — and you never retype
+a name or paste text again.
 
-- ✅ Save patients once: **name, phone, and whether you text the patient, a parent, or either**
-- ✅ Save reusable **message templates** with fill-in-the-blank spots like `Hi {name}`
-- ✅ Pick a message, check off who gets it, and fire them off **one tap each** — every text is **individual** (no group thread)
-- ✅ Import your patient list from a **spreadsheet (CSV)**
-- ✅ Works on **iPhone and computer**; add it to your Home Screen so it opens like an app
-- ✅ **Private:** all your patient info stays on your device — nothing is uploaded anywhere
-
----
-
-## First, the one honest limitation 📵➡️📱
-
-Apple does **not** let a website (or any app) silently send texts from your
-iPhone — that's their anti-spam rule, and there's no way around it on the phone
-itself. So on an iPhone the flow is:
-
-> Tap **Send** in the app → the Messages app pops open **already filled in with
-> the right person and message** → you tap the blue arrow → swipe back → next
-> person is ready.
-
-That's **one tap per person** instead of copy → switch apps → paste → find the
-contact → type the name → repeat. Six patients goes from ~20 minutes to ~1 minute.
-
-**Want truly zero taps?** If you have a **Mac**, there's an optional add-on that
-sends the whole batch completely hands-free. See
-[Zero-tap on a Mac](#optional-zero-tap-on-a-mac) below.
+- ✅ Save patients once: **first & last name, phone(s), and adult / child / both**, so you can text the patient, a parent, or either
+- ✅ Reusable **message templates** with fill-in-the-blanks that fill automatically per person
+- ✅ Built-in blanks: `{first name}` · `{last name}` · `{full name}` · `{patient}` · `{doctor}` · `{office}` — **plus your own custom variables**
+- ✅ One-tap send: opens Messages pre-filled per person, **individually** (no group threads), with progress tracking
+- ✅ **CSV import/export** of patients
+- ✅ **Local-only** storage (no server, no accounts) with backup/restore
+- ✅ Installable (PWA) with a built-in **?** walkthrough
+- ✅ Optional **Mac auto-sender** for fully hands-free batches
 
 ---
 
-## Set it up in ~5 minutes
+## The one honest limitation 📵➡️📱
 
-You'll put the app online (free, via GitHub Pages) so you can open it on your
-phone. **No patient information is stored in this project** — only the app
-itself — so this step never exposes any patient data.
+Apple does **not** let a website (or any app) silently send texts from an
+iPhone — that's their anti-spam rule, with no way around it on the phone itself.
+So on iPhone the flow is:
 
-### 1. Turn on the free web page
+> Tap **Send** → Messages opens **already filled in with the right person and
+> message** → you tap the blue arrow → swipe back → next person is ready.
 
-1. On a computer, go to your repository on GitHub:
-   **`github.com/williamhodgesiii-bit/followupmachine`**
-2. Click **Settings** (top of the repo) → **Pages** (left sidebar).
-3. Under **Build and deployment → Source**, choose **Deploy from a branch**.
-4. Set **Branch** to `claude/patient-followup-texts-86361s` and the folder to
-   **`/ (root)`**, then click **Save**.
-   *(Prefer it on your `main` branch? Merge this branch into `main` first, then
-   pick `main` here instead.)*
-5. Wait about a minute, then refresh. GitHub shows your live link — it will be:
+**One tap per person**, no typing or pasting. Six patients drops from ~20
+minutes to ~1 minute, and it sends as **iMessage automatically** (blue).
 
-   ### 👉 `https://williamhodgesiii-bit.github.io/followupmachine/`
-
-> **Note:** Free GitHub Pages requires the repository to be **public**. That's
-> safe here — the repo contains only the app's code, never any patient info.
-> If you'd rather keep it private, GitHub Pages is included with GitHub Pro, or
-> you can host the same files on any free static host (Netlify, Cloudflare Pages).
-
-### 2. Put it on your Home Screen (iPhone)
-
-1. Open that link in **Safari** on your iPhone.
-2. Tap the **Share** button (the square with the up-arrow).
-3. Tap **Add to Home Screen** → **Add**.
-4. Now it opens full-screen like a real app. Do the same on your Mac/PC browser
-   if you'd like it there too.
-
-That's it — you're ready to use it.
+**Want truly zero taps?** On a **Mac**, the included script sends the whole
+batch hands-free — see [Zero-tap on a Mac](#optional-zero-tap-on-a-mac).
 
 ---
 
-## How to use it
+## Simple walkthrough (30 seconds)
 
-**① Add your patients** (the *Patients* tab)
+There's also a **?** button at the top of the app with this same guide.
 
-- Tap **+ Add** and enter the patient's first name.
-- Choose who you usually text: **a parent** (for kids), **the patient** (adults),
-  or **either / both**.
-- Enter the phone number(s). You can always change who gets the text at send time.
-- Got a list already? Tap **Import CSV** and use **Get import template** to see
-  the exact column layout (a sample file is also in this repo:
-  [`patient-import-template.csv`](patient-import-template.csv)).
+1. **Add patients** — *Patients* tab → **+ Add**. Name, who you text (parent /
+   adult / either), phone number(s). Or **Import CSV** for a whole list.
+2. **Set names & make blanks** — *Settings* → fill in the **doctor** and
+   **office** names, and add any **custom variables** you want (e.g. a booking
+   link). These power `{doctor}`, `{office}`, and `{your own}` blanks.
+3. **Write messages** — *Messages* tab → **+ Add**. Type it once and tap the
+   blanks to drop them in. A live preview shows exactly how it'll read.
+4. **Send** — *Send* tab → pick a message → check who gets it → **Start
+   sending**. Tap through on iPhone, or auto-send on a Mac.
 
-**② Write your messages once** (the *Messages* tab)
+---
 
-- Tap **+ Add** and type a message. Drop in these fill-in-the-blank tags and they
-  fill automatically for each person:
-  | Tag | Becomes |
-  |-----|---------|
-  | `{name}` | the first name of whoever you're texting (patient *or* parent) |
-  | `{patient}` | the patient's first name (handy when texting a parent) |
-  | `{office}` | your name / office, set once in **Settings** |
-- Three starter messages are already included — edit or delete them freely.
-- Example: `Hi {name}, {office} checking in on {patient} after the recent visit — how are things feeling?`
-  → *"Hi Susan, Dr. Hodges' office checking in on Jimmy after the recent visit — how are things feeling?"*
+## Placeholders (the fill-in-the-blanks)
 
-**③ Send** (the *Send* tab)
+Type these in any message and they fill in automatically for each recipient:
 
-1. Pick a message at the top.
-2. Check off the patients to text (or **Select all**). For "either/both"
-   patients you can choose the patient, the parent, or both.
-3. Tap **Start sending**.
-4. For each person: tap **Open Messages & send** → tap the blue arrow in Messages
-   → swipe back. The app auto-advances to the next person and tracks your progress.
+| Placeholder | Fills in with |
+|---|---|
+| `{first name}` (or `{name}`) | first name of whoever you're texting (patient **or** parent) |
+| `{last name}` | their last name |
+| `{full name}` | their first + last name |
+| `{patient}` | the patient's first name (handy when texting a parent) |
+| `{patient last name}` | the patient's last name |
+| `{doctor}` | your doctor name — set once in **Settings** |
+| `{office}` | your office name — set once in **Settings** |
+| `{your own}` | any **custom variable** you create in Settings |
 
-> Set your name/office once under **Settings** so `{office}` fills in, and pick
-> your country code there if you're outside the US.
+**Custom variables:** In *Settings → Your own blanks*, add something like
+`booking link` = `hodgesortho.com/book`, then use `{booking link}` in any
+message. Great for links, phone numbers, or a standard sign-off.
+
+Example message:
+`Hi {first name}, {doctor} at {office} checking in on {patient} after the recent visit — book anytime at {booking link}.`
+→ *"Hi Susan, Dr. Hodges at Hodges Orthodontics checking in on Jimmy after the recent visit — book anytime at hodgesortho.com/book."*
+
+*(Typo a blank, like `{frist name}`? It stays visible as-is in the preview so
+you can catch it before sending.)*
+
+---
+
+## Hosting it (so you can open it on your phone)
+
+The app is plain static files, so **any static host works** — and it uses only
+relative paths, so it serves correctly from a domain root with zero config.
+
+- **Vercel:** import the repo, no framework preset needed, deploy. Done.
+- **GitHub Pages:** repo **Settings → Pages → Deploy from a branch →** pick the
+  branch and `/ (root)`. (Free Pages needs a **public** repo — safe here, since
+  the repo holds only app code, never patient data.)
+
+Then open your URL in **Safari on iPhone → Share → Add to Home Screen** so it
+opens like an app. Do the same in any desktop browser.
+
+> **No patient information is ever stored in this project** — only the app's
+> code. Patient data lives only in the browser on each device you use.
 
 ---
 
 ## Optional: zero-tap on a Mac
 
-If you have a Mac and want the whole batch to go out with **no taps at all**:
+For no-taps-at-all sending on a Mac:
 
-1. Sign in to iMessage in the **Messages** app on your Mac
-   (Messages → Settings → iMessage).
-2. In Follow-Up Machine, build your batch and, on the send screen, tap
-   **"Have a Mac? Download a file to auto-send them all."** — this saves
-   `followup-macsend.txt`.
+1. Sign in to iMessage in the **Messages** app (Messages → Settings → iMessage).
+2. In Follow-Up Machine, build your batch and tap **"Have a Mac? Download a file
+   to auto-send them all"** — this saves `followup-macsend.txt` to Downloads.
 3. Open [`tools/send-imessages.applescript`](tools/send-imessages.applescript)
    in the **Script Editor** app (already on every Mac) and press ▶ **Run**.
-4. Pick the `followup-macsend.txt` file when asked. The first time, macOS will
-   ask permission to control Messages — click **OK**.
+   - It finds the file in Downloads automatically, shows you the count, and on
+     **Send** fires them all off as iMessage. First run, macOS asks permission
+     to control Messages — click **OK**.
+   - Tip: in Script Editor, **File → Export → Application** turns it into a
+     double-click app you can keep in your Dock.
 
-Every message sends individually, with a short pause between each. Full
-instructions are in the comments at the top of that script.
-
-*(This is a power-user extra. Most people are perfectly happy with the one-tap
-iPhone flow and never need it.)*
+*(This is a power-user extra — most people are happy with the one-tap iPhone
+flow and never need it.)*
 
 ---
 
 ## Your data & privacy
 
-- Everything you enter (patients, messages, settings) is saved **only in your
-  browser on that device**. It is never sent to GitHub or any server.
-- Because it's stored per-device, use **Settings → Back up all data** to save a
-  file you can move to another device with **Restore from backup**.
+- Everything you enter (patients, messages, custom variables, settings) is saved
+  **only in your browser on that device**. Nothing is uploaded anywhere.
+- To move between devices: **Settings → Back up all data**, then **Restore from
+  backup** on the other device. (Since sending is easiest from your Mac/iPhone,
+  keeping the master list there keeps things simple.)
 - **Settings → Erase everything** wipes it from that device.
 
 ### A few sensible texting habits
-Follow-up "checking in" texts are generally fine, but since these are patients:
-
 - Keep it general — avoid specific medical/treatment details in a text.
 - Only text people who expect to hear from your office.
 - If someone replies **STOP** (or asks you to), stop texting them.
 - Your office should follow the usual rules for patient communication (e.g.
-  HIPAA and texting-consent/TCPA). This tool just helps you send faster; it
-  doesn't change those responsibilities.
+  HIPAA and texting-consent/TCPA). This tool just helps you send faster.
 
 ---
 
@@ -166,5 +149,4 @@ it keeps working even with no internet and never phones home.
 
 ## Make changes
 Want different starter messages, colors, or wording? It's all plain HTML/CSS/JS
-in `index.html`. Edit, commit, and (if you're using GitHub Pages) it updates
-automatically a minute after you push.
+in `index.html`. Edit, commit, and your host redeploys automatically.
