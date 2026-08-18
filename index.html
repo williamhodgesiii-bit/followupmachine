@@ -314,57 +314,13 @@
       <button class="btn sm" id="addVarBtn" style="margin-top:8px">+ Add variable</button>
     </div>
 
-    <!-- Cross-device sync via Supabase (end-to-end encrypted) -->
+    <!-- Account (shared team data + auto sign-out) -->
     <div class="card">
-      <h3>Sync across devices <span class="pill both" style="vertical-align:middle">Supabase · encrypted</span></h3>
-      <div class="warnbox" style="margin:6px 0 10px">⚠ <b>Test data only for now.</b> Use fake names until your Supabase project is on the HIPAA plan with a signed BAA (setup steps in the README). Real patient info before then isn't compliant.</div>
-      <p class="muted small">Live sync on every device — phone and computers — through your own Supabase project. Patient data is end-to-end encrypted on this device first, so the database only ever holds unreadable text.</p>
-      <div id="syncStatus" class="small" style="margin:10px 0"></div>
-
-      <!-- 1: connect a project -->
-      <div id="syncConnect">
-        <label class="field"><span>Supabase Project URL</span>
-          <input id="sbUrl" class="input" type="url" placeholder="https://xxxxxxxx.supabase.co" /></label>
-        <label class="field"><span>Supabase anon (public) key</span>
-          <input id="sbKey" class="input" placeholder="eyJhbGciOi…" /></label>
-        <div class="hint">Safe to store here — the anon key is public; your data is protected by login + encryption. Project setup &amp; the SQL are in the README.</div>
-        <button class="btn primary sm" id="sbConnectBtn" style="margin-top:8px">Save connection</button>
-      </div>
-
-      <!-- 2: sign in -->
-      <div id="syncAuth" style="display:none">
-        <div class="field-row">
-          <label class="field" style="margin:0"><span>Email</span>
-            <input id="sbEmail" class="input" type="email" autocomplete="username" placeholder="you@office.com" /></label>
-          <label class="field" style="margin:0"><span>Password</span>
-            <input id="sbPass" class="input" type="password" autocomplete="current-password" placeholder="password" /></label>
-        </div>
-        <div class="warnbox" style="margin:2px 0 8px">This password also unlocks your encrypted data — use the <b>same one on every device</b> and write it down; it can't be recovered.</div>
-        <div class="row wrap">
-          <button class="btn primary sm" id="sbSignInBtn">Sign in</button>
-          <button class="btn sm" id="sbSignUpBtn">Create account</button>
-          <button class="btn ghost sm" id="sbEditConnBtn">Change project</button>
-        </div>
-      </div>
-
-      <!-- 3: unlock (session restored, need password to decrypt) -->
-      <div id="syncUnlock" style="display:none">
-        <label class="field"><span>Enter your password to unlock synced data on this device</span>
-          <input id="sbUnlock" class="input" type="password" autocomplete="current-password" /></label>
-        <div class="row wrap">
-          <button class="btn primary sm" id="sbUnlockBtn">Unlock</button>
-          <button class="btn ghost sm" id="sbSignOutBtn2">Sign out</button>
-        </div>
-      </div>
-
-      <!-- 4: active -->
-      <div id="syncActive" style="display:none">
-        <div id="syncActiveUI"></div>
-        <hr class="divider" />
-        <button class="btn ghost sm" id="sbSignOutBtn" style="color:var(--danger)">Sign out on this device</button>
-      </div>
-
-      <div class="hint" id="syncHelp" style="margin-top:10px"></div>
+      <h3>Account &amp; sync <span class="pill both" style="vertical-align:middle">shared team data</span></h3>
+      <div class="warnbox" style="margin:6px 0 10px">⚠ <b>Test data only for now.</b> Real patient info needs your Supabase project on the HIPAA plan with a signed BAA (see README).</div>
+      <div id="acctStatus" class="small" style="margin:6px 0"></div>
+      <p class="muted small">Everyone signed in shares the same patients &amp; messages, live across phones and computers. For security, all accounts sign out automatically at <b>midnight Central time</b>. New staff logins are created by your admin in Supabase.</p>
+      <button class="btn ghost sm" id="acctSignOut" style="color:var(--danger)">Sign out</button>
     </div>
 
     <div class="card">
@@ -524,12 +480,37 @@
   </div>
 </dialog>
 
+<!-- ============ SIGN-IN GATE ============ -->
+<div id="authGate" style="position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px">
+  <div style="width:100%;max-width:360px">
+    <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:16px">
+      <svg viewBox="0 0 48 48" width="34" height="34" fill="none" aria-hidden="true">
+        <rect x="5" y="8" width="38" height="27" rx="8" fill="var(--brand)"/>
+        <path d="M16 35l-4 7 12-7z" fill="var(--brand)"/>
+        <path d="M15 18c0-2 2-3 4-2 1.5.8 2.5.8 4 0 2-1 4 0 4 2 0 3-1.4 8-2.6 8-1 0-1-2-1.4-2s-.4 2-1.4 2c-2 0-4-5-4-8z" fill="#fff"/>
+      </svg>
+      <div style="font-weight:800;font-size:1.15rem">Follow-Up Machine</div>
+    </div>
+    <div class="card" style="margin:0">
+      <h3 style="margin:0 0 4px">Staff sign in</h3>
+      <p class="small muted" style="margin:0 0 12px">Sign in to load your shared patient list.</p>
+      <label class="field"><span>Email</span>
+        <input id="gateEmail" class="input" type="email" autocomplete="username" placeholder="you@office.com" /></label>
+      <label class="field"><span>Password</span>
+        <input id="gatePass" class="input" type="password" autocomplete="current-password" placeholder="password" /></label>
+      <div id="gateError" class="warnbox" style="display:none;margin:0 0 10px"></div>
+      <button class="btn primary block" id="gateSignIn">Sign in</button>
+      <p class="hint" style="margin-top:12px">Accounts are created by your office admin. Everyone shares the same data, and all accounts sign out at midnight Central time.</p>
+    </div>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script>
 "use strict";
 (function(){
-  const VERSION = "1.2.0";
+  const VERSION = "1.3.0";
   const KEY = "fum.v1";
   const $ = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
@@ -1282,226 +1263,145 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
     $("#setCC").value=state.settings.cc||"";
   }
 
-  /* ============ CROSS-DEVICE SYNC via Supabase (end-to-end encrypted) ============ */
-  // Model: your whole dataset is encrypted on THIS device (AES-GCM, key derived
-  // from your account password via PBKDF2) and stored as one ciphertext row in
-  // YOUR Supabase project. Row-Level Security isolates it to your account, and a
-  // realtime subscription pushes changes live to your other devices. Supabase only
-  // ever sees ciphertext. NOTE: HIPAA-compliant only on Supabase's paid HIPAA plan
-  // with a signed BAA — until then this is for TEST data.
-  const SYNC_KEY = KEY + ".sync";     // { url, key, k?(exported AES key b64), salt?(b64) }
+  /* ============ SHARED TEAM SYNC via Supabase ============ */
+  // All staff accounts share ONE dataset (a single "workspace" row). Any signed-in
+  // staff account reads/writes it; a realtime subscription keeps every device live.
+  // The app is gated behind staff login and auto signs everyone out at midnight
+  // Central time. NOTE: HIPAA-compliant only on Supabase's paid HIPAA plan WITH a
+  // signed BAA — until then, TEST DATA ONLY. (Shared team data is protected by
+  // staff login + Supabase's own encryption at rest, not per-user encryption.)
+
+  // ---- YOUR PROJECT (baked in; the anon key is public and safe to ship) ----
+  const SUPABASE_URL = "PASTE_YOUR_PROJECT_URL";     // e.g. https://abcd1234.supabase.co
+  const SUPABASE_ANON_KEY = "PASTE_YOUR_ANON_KEY";   // Supabase → Project Settings → API → anon public
+
   const SDK_URL = "https://esm.sh/@supabase/supabase-js@2";
-  const ITERS = 200000;
-  let sb = null, sbUser = null, encKey = null, encSalt = null, sbChannel = null, pushTimer = null;
+  const AUTH_DAY = KEY + ".authday";
+  let sb=null, currentUser=null, signedIn=false, channel=null, pushTimer=null, midnightTimer=null;
 
-  function bytesToB64(buf){ const b=new Uint8Array(buf); let s=""; for(let i=0;i<b.length;i++) s+=String.fromCharCode(b[i]); return btoa(s); }
-  function b64ToBytes(b64){ const bin=atob(b64); const out=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i); return out; }
-  function loadSyncMeta(){ try{ return JSON.parse(localStorage.getItem(SYNC_KEY))||{}; }catch(e){ return {}; } }
-  function saveSyncMeta(m){ localStorage.setItem(SYNC_KEY, JSON.stringify(m)); }
-  const showEl=(sel,on)=>{ const el=$(sel); if(el) el.style.display = on?"":"none"; };
-
-  async function loadSDK(){
-    if(window.__sb) return window.__sb;
-    window.__sb = await import(/* @vite-ignore */ SDK_URL);
-    return window.__sb;
+  function getConfig(){
+    if(/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(SUPABASE_URL) && SUPABASE_ANON_KEY.length>20)
+      return { url:SUPABASE_URL, key:SUPABASE_ANON_KEY };
+    // fallback: a project saved on this device from an earlier version
+    try{ const m=JSON.parse(localStorage.getItem(KEY+".sync"))||{}; if(m.url && m.key) return {url:m.url, key:m.key}; }catch(e){}
+    return null;
   }
+  async function loadSDK(){ if(window.__sb) return window.__sb; window.__sb=await import(/* @vite-ignore */ SDK_URL); return window.__sb; }
   async function ensureClient(){
-    const m=loadSyncMeta(); if(!m.url || !m.key) return null;
     if(sb) return sb;
-    const { createClient } = await loadSDK();
-    sb = createClient(m.url, m.key, { auth:{ persistSession:true, autoRefreshToken:true } });
+    const cfg=getConfig(); if(!cfg) return null;
+    const { createClient }=await loadSDK();
+    sb=createClient(cfg.url, cfg.key, { auth:{ persistSession:true, autoRefreshToken:true } });
     return sb;
   }
 
-  // --- crypto (key from account password, salt shared via the row) ---
-  async function deriveKey(password, saltBytes){
-    const base=await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
-    return crypto.subtle.deriveKey({name:"PBKDF2", salt:saltBytes, iterations:ITERS, hash:"SHA-256"},
-      base, {name:"AES-GCM", length:256}, true, ["encrypt","decrypt"]);
+  // ---- Central-time helpers (auto sign-out at midnight America/Chicago) ----
+  function centralDay(d){ return new Intl.DateTimeFormat("en-CA",{ timeZone:"America/Chicago", year:"numeric", month:"2-digit", day:"2-digit" }).format(d||new Date()); }
+  function msToCentralMidnight(){
+    const p=new Intl.DateTimeFormat("en-US",{ timeZone:"America/Chicago", hour12:false, hour:"2-digit", minute:"2-digit", second:"2-digit" }).formatToParts(new Date());
+    const g=t=>+p.find(x=>x.type===t).value;
+    const secs=(24*3600) - ((g("hour")%24)*3600 + g("minute")*60 + g("second"));
+    return (secs+1)*1000;
   }
-  async function rememberKey(){
-    if(!encKey || !encSalt) return;
-    const raw=await crypto.subtle.exportKey("raw", encKey);
-    const m=loadSyncMeta(); m.k=bytesToB64(raw); m.salt=bytesToB64(encSalt); saveSyncMeta(m);
-  }
-  async function restoreKey(){
-    const m=loadSyncMeta(); if(!m.k || !m.salt) return false;
-    encSalt=b64ToBytes(m.salt);
-    encKey=await crypto.subtle.importKey("raw", b64ToBytes(m.k), {name:"AES-GCM"}, true, ["encrypt","decrypt"]);
-    return true;
-  }
-  async function encryptState(){
-    const iv=crypto.getRandomValues(new Uint8Array(12));
-    const ct=await crypto.subtle.encrypt({name:"AES-GCM", iv}, encKey, new TextEncoder().encode(JSON.stringify(state)));
-    return { iv:bytesToB64(iv), ciphertext:bytesToB64(ct) };
-  }
-  async function decryptRow(row){
-    const pt=await crypto.subtle.decrypt({name:"AES-GCM", iv:b64ToBytes(row.iv)}, encKey, b64ToBytes(row.ciphertext));
-    return JSON.parse(new TextDecoder().decode(pt));
-  }
+  function armMidnight(){ clearTimeout(midnightTimer); midnightTimer=setTimeout(()=>doSignOut("Signed out for the night (midnight Central). Please sign in again."), msToCentralMidnight()); }
 
   function applyIncoming(incoming, force){
-    if(!incoming || !Array.isArray(incoming.contacts) || !Array.isArray(incoming.templates)) throw new Error("bad data");
+    if(!incoming || !Array.isArray(incoming.contacts) || !Array.isArray(incoming.templates)) return false;
     const localT=state.updatedAt||0, remoteT=incoming.updatedAt||0;
     if(!force && remoteT<=localT) return false;
     localStorage.setItem(KEY, JSON.stringify(incoming));
     state=load(); selection={};
-    syncSettingsUI(); renderVars(); renderContacts(); renderTemplates(); populateTplSelect(); renderCompose();
-    return true;
+    renderAll(); return true;
   }
+  function renderAll(){ syncSettingsUI(); renderVars(); renderContacts(); renderTemplates(); populateTplSelect(); renderCompose(); renderAcct(); }
 
-  // --- push / pull ---
-  async function pushState(){
-    if(!sb || !sbUser || !encKey) return;
-    try{
-      const { iv, ciphertext } = await encryptState();
-      await sb.from("vault").upsert({
-        user_id: sbUser.id, salt: bytesToB64(encSalt), iv, ciphertext,
-        updated_at: new Date(state.updatedAt||Date.now()).toISOString()
-      });
-    }catch(e){ /* offline / transient */ }
+  // ---- shared workspace read/write ----
+  async function pushWorkspace(){
+    if(!sb || !signedIn) return;
+    try{ await sb.from("workspace").upsert({ id:"default", data: state, updated_at: new Date(state.updatedAt||Date.now()).toISOString() }); }catch(e){}
   }
-  function scheduleAutoSync(){ if(!sb || !sbUser || !encKey) return; clearTimeout(pushTimer); pushTimer=setTimeout(pushState, 800); }
-
-  async function fetchRow(){
-    const { data, error } = await sb.from("vault").select("*").eq("user_id", sbUser.id).maybeSingle();
-    if(error) throw error; return data;
-  }
-  async function pullState(silent){
-    if(!sb || !sbUser || !encKey) return;
+  function scheduleAutoSync(){ if(!sb || !signedIn) return; clearTimeout(pushTimer); pushTimer=setTimeout(pushWorkspace, 800); }
+  async function pullWorkspace(silent){
+    if(!sb || !signedIn) return;
     try{
-      const row=await fetchRow(); if(!row) return;
-      const incoming=await decryptRow(row);
-      incoming.updatedAt = incoming.updatedAt || new Date(row.updated_at).getTime();
-      const applied=applyIncoming(incoming, false);
+      const { data, error }=await sb.from("workspace").select("data").eq("id","default").maybeSingle();
+      if(error || !data || !data.data) return;
+      const applied=applyIncoming(data.data, false);
       if(applied && !silent) toast("Updated from another device");
-    }catch(e){ if(!silent) toast("Couldn't read your synced data"); }
+    }catch(e){}
   }
   async function subscribeRealtime(){
-    if(!sb || !sbUser) return;
-    try{ if(sbChannel){ await sb.removeChannel(sbChannel); sbChannel=null; } }catch(e){}
-    sbChannel = sb.channel("vault-"+sbUser.id)
-      .on("postgres_changes", { event:"*", schema:"public", table:"vault", filter:"user_id=eq."+sbUser.id },
-        ()=> pullState(false))
+    if(!sb) return;
+    try{ if(channel){ await sb.removeChannel(channel); channel=null; } }catch(e){}
+    channel=sb.channel("workspace-default")
+      .on("postgres_changes", { event:"*", schema:"public", table:"workspace", filter:"id=eq.default" }, ()=> pullWorkspace(false))
       .subscribe();
   }
 
-  // --- auth ---
-  async function doAuth(isSignUp){
-    const email=$("#sbEmail").value.trim(), password=$("#sbPass").value;
-    if(!email || !password){ toast("Enter email & password"); return; }
-    const client=await ensureClient(); if(!client){ toast("Add your Supabase project first"); return; }
+  // ---- sign-in gate ----
+  function gateError(msg){ const el=$("#gateError"); if(!el) return; el.textContent=msg||""; el.style.display=msg?"":"none"; }
+  function showGate(){ $("#authGate").style.display="flex"; }
+  function hideGate(){ $("#authGate").style.display="none"; }
+  function renderAcct(){
+    const el=$("#acctStatus"); if(!el) return;
+    el.innerHTML = (signedIn && currentUser)
+      ? `<span style="color:var(--ok);font-weight:700">● Signed in</span> · ${esc(currentUser.email||"")}`
+      : `<span class="faint">Not signed in.</span>`;
+  }
+
+  async function signIn(){
+    const email=$("#gateEmail").value.trim(), password=$("#gatePass").value;
+    if(!email || !password){ gateError("Enter your email and password."); return; }
+    const client=await ensureClient();
+    if(!client){ gateError("This app isn't set up yet — ask your admin to add the Supabase details."); return; }
+    gateError(""); const btn=$("#gateSignIn"); btn.disabled=true; btn.textContent="Signing in…";
     try{
-      const res = isSignUp
-        ? await client.auth.signUp({ email, password })
-        : await client.auth.signInWithPassword({ email, password });
-      if(res.error){ toast(res.error.message); return; }
-      const user = res.data.user || (await client.auth.getUser()).data.user;
-      if(!user){ toast("Check your email to confirm your account, then sign in"); return; }
-      sbUser=user; await afterLogin(password);
-    }catch(e){ toast("Couldn't reach Supabase — check the URL/key"); }
+      const { data, error }=await client.auth.signInWithPassword({ email, password });
+      if(error){ gateError(error.message); return; }
+      currentUser=data.user; localStorage.setItem(AUTH_DAY, centralDay());
+      await enterApp();
+    }catch(e){ gateError("Couldn't reach the server — check your connection."); }
+    finally{ btn.disabled=false; btn.textContent="Sign in"; }
   }
-  async function afterLogin(password){
-    let row=null;
-    try{ row=await fetchRow(); }catch(e){}
-    encSalt = (row && row.salt) ? b64ToBytes(row.salt) : crypto.getRandomValues(new Uint8Array(16));
-    encKey = await deriveKey(password, encSalt);
-    $("#sbPass").value="";
-    if(row){
-      try{
-        const incoming=await decryptRow(row);
-        incoming.updatedAt = incoming.updatedAt || new Date(row.updated_at).getTime();
-        applyIncoming(incoming, false);
-      }catch(e){ encKey=null; toast("That password doesn't match this account's data"); renderSync(); return; }
-    } else {
-      await pushState(); // first device: seed the row
-    }
-    await rememberKey(); await subscribeRealtime(); renderSync(); toast("Sync is on");
+  async function enterApp(){
+    signedIn=true; $("#gatePass").value="";
+    try{
+      const { data }=await sb.from("workspace").select("data").eq("id","default").maybeSingle();
+      if(data && data.data){ applyIncoming(data.data, true); } else { await pushWorkspace(); }
+    }catch(e){}
+    await subscribeRealtime(); armMidnight(); renderAll(); hideGate();
   }
-  async function unlock(){
-    const pw=$("#sbUnlock").value; if(!pw){ return; }
-    let row=null; try{ row=await fetchRow(); }catch(e){}
-    encSalt = (row && row.salt) ? b64ToBytes(row.salt) : crypto.getRandomValues(new Uint8Array(16));
-    encKey = await deriveKey(pw, encSalt);
-    if(row){
-      try{
-        const incoming=await decryptRow(row);
-        incoming.updatedAt = incoming.updatedAt || new Date(row.updated_at).getTime();
-        applyIncoming(incoming, false);
-      }catch(e){ encKey=null; toast("Wrong password"); renderSync(); return; }
-    } else { await pushState(); }
-    await rememberKey(); await subscribeRealtime(); $("#sbUnlock").value=""; renderSync(); toast("Unlocked");
-  }
-  async function signOut(){
-    try{ if(sbChannel){ await sb.removeChannel(sbChannel); sbChannel=null; } }catch(e){}
+  async function doSignOut(reason){
+    try{ if(channel){ await sb.removeChannel(channel); channel=null; } }catch(e){}
     try{ if(sb) await sb.auth.signOut(); }catch(e){}
-    sbUser=null; encKey=null; encSalt=null;
-    const m=loadSyncMeta(); delete m.k; delete m.salt; saveSyncMeta(m);
-    renderSync(); toast("Signed out on this device");
-  }
-  async function saveConnection(){
-    const url=$("#sbUrl").value.trim().replace(/\/+$/,""); const key=$("#sbKey").value.trim();
-    if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)){ toast("Enter your project URL (https://xxxx.supabase.co)"); return; }
-    if(key.length<20){ toast("Paste your anon (public) key"); return; }
-    const m=loadSyncMeta(); m.url=url; m.key=key; delete m.k; delete m.salt; saveSyncMeta(m);
-    sb=null; sbUser=null; encKey=null;
-    try{ await ensureClient(); toast("Project saved — now sign in"); }
-    catch(e){ toast("Saved, but couldn't load the Supabase library (offline?)"); }
-    renderSync();
-  }
-  function changeProject(){
-    const m=loadSyncMeta(); saveSyncMeta({}); sb=null; sbUser=null; encKey=null;
-    $("#sbUrl").value=m.url||""; $("#sbKey").value=""; renderSync();
+    signedIn=false; currentUser=null; clearTimeout(midnightTimer); clearTimeout(pushTimer);
+    localStorage.removeItem(KEY); localStorage.removeItem(AUTH_DAY);  // leave no patient data on a signed-out device
+    state=load(); selection={}; renderAll(); showGate(); gateError(reason||"");
   }
 
-  function renderSync(){
-    const m=loadSyncMeta();
-    const hasConn=!!(m.url && m.key), signedIn=!!sbUser, unlocked=!!encKey;
-    showEl("#syncConnect", !hasConn);
-    showEl("#syncAuth", hasConn && !signedIn);
-    showEl("#syncUnlock", hasConn && signedIn && !unlocked);
-    showEl("#syncActive", hasConn && signedIn && unlocked);
-    const status=$("#syncStatus"), help=$("#syncHelp");
-    if(!hasConn){
-      status.innerHTML=`<span class="faint">Off — your data stays only on this device.</span>`;
-      help.innerHTML=`Create a free Supabase project, run the setup SQL (in the README), then paste your Project URL &amp; anon key above.`;
-    } else if(!signedIn){
-      status.innerHTML=`<span class="faint">Connected to your project — sign in to start syncing.</span>`;
-      help.innerHTML=`First time? Tap <b>Create account</b>. On your other devices, use the <b>same email &amp; password</b>.`;
-    } else if(!unlocked){
-      status.innerHTML=`<span style="color:var(--warn);font-weight:700">● Signed in — locked</span>`;
-      help.innerHTML=`Enter your password to decrypt your data on this device.`;
-    } else {
-      status.innerHTML=`<span style="color:var(--ok);font-weight:700">● Live sync on</span> · ${esc(sbUser.email||"")}`;
-      $("#syncActiveUI").innerHTML=`<div class="row wrap"><button class="btn sm" id="sbSyncNowBtn">↻ Sync now</button></div>
-        <p class="small muted" style="margin:8px 0 0">Changes save automatically and appear on your other signed-in devices within a moment.</p>`;
-      const b=$("#sbSyncNowBtn"); if(b) b.addEventListener("click",async()=>{ await pullState(false); await pushState(); toast("Synced"); });
-      help.innerHTML=`Live on every device signed in with this account. Reminder: keep it to <b>test data</b> until your project is on Supabase's HIPAA plan with a signed BAA.`;
-    }
+  function onReturn(){
+    if(!signedIn) return;
+    if(localStorage.getItem(AUTH_DAY)!==centralDay()){ doSignOut("Signed out overnight — please sign in again."); return; }
+    pullWorkspace(true);
   }
+  window.addEventListener("focus", onReturn);
+  document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") onReturn(); });
 
-  $("#sbConnectBtn").addEventListener("click", saveConnection);
-  $("#sbSignInBtn").addEventListener("click", ()=>doAuth(false));
-  $("#sbSignUpBtn").addEventListener("click", ()=>doAuth(true));
-  $("#sbEditConnBtn").addEventListener("click", changeProject);
-  $("#sbUnlockBtn").addEventListener("click", unlock);
-  $("#sbSignOutBtn").addEventListener("click", signOut);
-  $("#sbSignOutBtn2").addEventListener("click", signOut);
-  window.addEventListener("focus", ()=>{ if(sb && sbUser && encKey) pullState(true); });
+  $("#gateSignIn").addEventListener("click", signIn);
+  $("#gatePass").addEventListener("keydown", e=>{ if(e.key==="Enter") signIn(); });
+  { const b=$("#acctSignOut"); if(b) b.addEventListener("click", ()=>doSignOut()); }
 
   async function initSync(){
-    renderSync();
-    const m=loadSyncMeta(); if(!m.url || !m.key) return;
-    let client; try{ client=await ensureClient(); }catch(e){ return; }
-    if(!client) return;
+    renderAcct();
+    const client=await ensureClient().catch(()=>null);
+    if(!client){ gateError("Setup needed — add your Supabase details (see README)."); return; }
     try{
-      const { data:{ session } } = await client.auth.getSession();
+      const { data:{ session } }=await client.auth.getSession();
       if(session && session.user){
-        sbUser=session.user;
-        if(await restoreKey()){ await subscribeRealtime(); await pullState(true); }
+        if(localStorage.getItem(AUTH_DAY)!==centralDay()){ await doSignOut(); return; }
+        currentUser=session.user; await enterApp();
       }
     }catch(e){}
-    renderSync();
   }
 
   /* ================= init ================= */

@@ -1,41 +1,44 @@
 -- ============================================================
---  Follow-Up Machine — Supabase setup
+--  Follow-Up Machine — Supabase setup (shared team workspace)
 -- ============================================================
---  Run once in your Supabase project:
---    Dashboard → SQL Editor → New query → paste this → Run.
+--  Run once: Supabase Dashboard → SQL Editor → New query → paste → Run.
 --
---  It creates ONE row per user that holds your whole dataset as an
---  encrypted blob, locks it down with Row-Level Security so each account
---  can only touch its own row, and turns on realtime so your devices stay
---  in sync. Supabase only ever stores ciphertext — it can't read your data.
+--  This creates ONE shared row that every staff account reads & writes, so
+--  the whole team sees the same patients & messages, live. Row-Level Security
+--  requires a signed-in account to touch it.
 --
---  ⚠ HIPAA: This makes the app *work*. It is compliant only when your
---  Supabase project is on the paid HIPAA plan WITH a signed BAA. Until then,
---  use test/fake data only.
+--  ⚠️ TWO THINGS YOU MUST ALSO DO IN THE DASHBOARD:
+--   1) DISABLE public sign-ups so randoms can't make an account and read your
+--      data:  Authentication → Sign In / Providers → Email → turn OFF
+--      "Allow new users to sign up".
+--   2) CREATE each staff login yourself:  Authentication → Users → Add user
+--      (set an email + password; give it to that staff member).
+--
+--  ⚠️ HIPAA: compliant only when this project is on Supabase's paid HIPAA plan
+--  WITH a signed BAA. Until then, use TEST/FAKE data only.
 -- ============================================================
 
-create table if not exists public.vault (
-  user_id    uuid primary key references auth.users(id) on delete cascade,
-  salt       text not null,
-  iv         text not null,
-  ciphertext text not null,
+create table if not exists public.workspace (
+  id         text primary key,
+  data       jsonb not null default '{}'::jsonb,
   updated_at timestamptz not null default now()
 );
 
-alter table public.vault enable row level security;
+-- the single shared row
+insert into public.workspace (id) values ('default') on conflict (id) do nothing;
 
-drop policy if exists "vault_select_own" on public.vault;
-create policy "vault_select_own" on public.vault
-  for select using (auth.uid() = user_id);
+alter table public.workspace enable row level security;
 
-drop policy if exists "vault_insert_own" on public.vault;
-create policy "vault_insert_own" on public.vault
-  for insert with check (auth.uid() = user_id);
+-- any signed-in (authenticated) staff account may read & write the shared row
+drop policy if exists "ws_read"  on public.workspace;
+create policy "ws_read"  on public.workspace for select to authenticated using (true);
 
-drop policy if exists "vault_update_own" on public.vault;
-create policy "vault_update_own" on public.vault
-  for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+drop policy if exists "ws_write" on public.workspace;
+create policy "ws_write" on public.workspace for update to authenticated using (true) with check (true);
 
--- Turn on realtime for live cross-device sync.
--- (If it says the table is already in the publication, that's fine — ignore it.)
-alter publication supabase_realtime add table public.vault;
+drop policy if exists "ws_insert" on public.workspace;
+create policy "ws_insert" on public.workspace for insert to authenticated with check (true);
+
+-- live cross-device updates
+-- (if it says the table is already in the publication, that's fine — ignore it)
+alter publication supabase_realtime add table public.workspace;
