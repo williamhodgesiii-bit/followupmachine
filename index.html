@@ -267,7 +267,7 @@
       Type a message once with these blanks — they fill in automatically for each person:
       <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px 8px">
         <span><code class="var">{first name}</code> who you're texting</span>
-        <span><code class="var">{last name}</code></span>
+        <span><code class="var">{last initial}</code></span>
         <span><code class="var">{patient}</code> the patient</span>
         <span><code class="var">{doctor}</code></span>
         <span><code class="var">{office}</code></span>
@@ -314,9 +314,62 @@
       <button class="btn sm" id="addVarBtn" style="margin-top:8px">+ Add variable</button>
     </div>
 
+    <!-- Cross-device sync via Supabase (end-to-end encrypted) -->
+    <div class="card">
+      <h3>Sync across devices <span class="pill both" style="vertical-align:middle">Supabase · encrypted</span></h3>
+      <div class="warnbox" style="margin:6px 0 10px">⚠ <b>Test data only for now.</b> Use fake names until your Supabase project is on the HIPAA plan with a signed BAA (setup steps in the README). Real patient info before then isn't compliant.</div>
+      <p class="muted small">Live sync on every device — phone and computers — through your own Supabase project. Patient data is end-to-end encrypted on this device first, so the database only ever holds unreadable text.</p>
+      <div id="syncStatus" class="small" style="margin:10px 0"></div>
+
+      <!-- 1: connect a project -->
+      <div id="syncConnect">
+        <label class="field"><span>Supabase Project URL</span>
+          <input id="sbUrl" class="input" type="url" placeholder="https://xxxxxxxx.supabase.co" /></label>
+        <label class="field"><span>Supabase anon (public) key</span>
+          <input id="sbKey" class="input" placeholder="eyJhbGciOi…" /></label>
+        <div class="hint">Safe to store here — the anon key is public; your data is protected by login + encryption. Project setup &amp; the SQL are in the README.</div>
+        <button class="btn primary sm" id="sbConnectBtn" style="margin-top:8px">Save connection</button>
+      </div>
+
+      <!-- 2: sign in -->
+      <div id="syncAuth" style="display:none">
+        <div class="field-row">
+          <label class="field" style="margin:0"><span>Email</span>
+            <input id="sbEmail" class="input" type="email" autocomplete="username" placeholder="you@office.com" /></label>
+          <label class="field" style="margin:0"><span>Password</span>
+            <input id="sbPass" class="input" type="password" autocomplete="current-password" placeholder="password" /></label>
+        </div>
+        <div class="warnbox" style="margin:2px 0 8px">This password also unlocks your encrypted data — use the <b>same one on every device</b> and write it down; it can't be recovered.</div>
+        <div class="row wrap">
+          <button class="btn primary sm" id="sbSignInBtn">Sign in</button>
+          <button class="btn sm" id="sbSignUpBtn">Create account</button>
+          <button class="btn ghost sm" id="sbEditConnBtn">Change project</button>
+        </div>
+      </div>
+
+      <!-- 3: unlock (session restored, need password to decrypt) -->
+      <div id="syncUnlock" style="display:none">
+        <label class="field"><span>Enter your password to unlock synced data on this device</span>
+          <input id="sbUnlock" class="input" type="password" autocomplete="current-password" /></label>
+        <div class="row wrap">
+          <button class="btn primary sm" id="sbUnlockBtn">Unlock</button>
+          <button class="btn ghost sm" id="sbSignOutBtn2">Sign out</button>
+        </div>
+      </div>
+
+      <!-- 4: active -->
+      <div id="syncActive" style="display:none">
+        <div id="syncActiveUI"></div>
+        <hr class="divider" />
+        <button class="btn ghost sm" id="sbSignOutBtn" style="color:var(--danger)">Sign out on this device</button>
+      </div>
+
+      <div class="hint" id="syncHelp" style="margin-top:10px"></div>
+    </div>
+
     <div class="card">
       <h3>Your data</h3>
-      <p class="muted small">Everything lives only on this device — nothing is uploaded anywhere. Back up, or move to another device, with these:</p>
+      <p class="muted small">A plain (unencrypted) copy for your own backups — or to move everything to another device by hand:</p>
       <div class="row wrap">
         <button class="btn sm" id="backupBtn">⬇ Back up all data</button>
         <button class="btn sm" id="restoreBtn">⬆ Restore from backup</button>
@@ -369,8 +422,8 @@
       <div class="field-row">
         <label class="field"><span>Patient first name</span>
           <input id="c_patientFirst" class="input" placeholder="e.g. Jimmy" required /></label>
-        <label class="field"><span>Patient last name</span>
-          <input id="c_patientLast" class="input" placeholder="e.g. Miller" /></label>
+        <label class="field"><span>Patient last initial</span>
+          <input id="c_patientLast" class="input" maxlength="1" placeholder="e.g. M" style="text-transform:uppercase" /></label>
       </div>
 
       <div class="field">
@@ -387,8 +440,8 @@
         <div class="field-row">
           <label class="field"><span>Parent / guardian first name</span>
             <input id="c_guardianFirst" class="input" placeholder="e.g. Susan" /></label>
-          <label class="field"><span>Parent / guardian last name</span>
-            <input id="c_guardianLast" class="input" placeholder="e.g. Miller" /></label>
+          <label class="field"><span>Parent / guardian last initial</span>
+            <input id="c_guardianLast" class="input" maxlength="1" placeholder="e.g. M" style="text-transform:uppercase" /></label>
         </div>
         <label class="field"><span>Parent / guardian phone</span>
           <input id="c_guardianPhone" class="input" type="tel" inputmode="tel" placeholder="(555) 123-4567" /></label>
@@ -476,12 +529,14 @@
 <script>
 "use strict";
 (function(){
-  const VERSION = "1.1.0";
+  const VERSION = "1.2.0";
   const KEY = "fum.v1";
   const $ = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
   const uid = ()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
   const esc = s => (s==null?"":String(s)).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  // We store only a last INITIAL (not the full last name) to keep patient data minimal.
+  function initialOf(s){ const m=String(s||"").trim().match(/[A-Za-z]/); return m ? m[0].toUpperCase() : ""; }
 
   const isAppleDevice = /iP(hone|od|ad)/.test(navigator.userAgent) ||
       (/Mac/.test(navigator.platform) && navigator.maxTouchPoints > 0) || /Mac/.test(navigator.platform);
@@ -501,7 +556,8 @@
   function load(){
     let data;
     try{ const raw=JSON.parse(localStorage.getItem(KEY)); if(raw && raw.contacts && raw.templates) data=raw; }catch(e){}
-    if(!data) data = { contacts:[], templates:DEFAULT_TEMPLATES.map(t=>({...t})), settings:{} };
+    if(!data) data = { contacts:[], templates:DEFAULT_TEMPLATES.map(t=>({...t})), settings:{}, updatedAt:0 };
+    if(data.updatedAt==null) data.updatedAt=0;
     // normalize / migrate so older saves & backups keep working
     const s = data.settings = data.settings || {};
     if(s.office==null) s.office="";
@@ -510,13 +566,13 @@
     if(!Array.isArray(s.variables)) s.variables=[];
     data.contacts = (data.contacts||[]).map(c=>({
       id:c.id||uid(),
-      patientFirst:c.patientFirst||"", patientLast:c.patientLast||"", patientPhone:c.patientPhone||"",
-      guardianFirst:c.guardianFirst||"", guardianLast:c.guardianLast||"", guardianPhone:c.guardianPhone||"",
+      patientFirst:c.patientFirst||"", patientLast:initialOf(c.patientLast), patientPhone:c.patientPhone||"",
+      guardianFirst:c.guardianFirst||"", guardianLast:initialOf(c.guardianLast), guardianPhone:c.guardianPhone||"",
       type:c.type||"child", notes:c.notes||""
     }));
     return data;
   }
-  function save(){ localStorage.setItem(KEY, JSON.stringify(state)); }
+  function save(){ state.updatedAt = Date.now(); localStorage.setItem(KEY, JSON.stringify(state)); scheduleAutoSync(); }
 
   /* ---------- helpers ---------- */
   function normalizePhone(raw){
@@ -541,8 +597,8 @@
 
   /* ---------- variables / fill ---------- */
   function varKeyNorm(k){ return (k||"").toLowerCase().replace(/[{}]/g,"").replace(/\s+/g," ").trim(); }
-  const RESERVED = ["name","first name","first","last name","last","full name",
-    "patient","patient name","patient first name","patient first","patient last name","patient last","patient full name",
+  const RESERVED = ["name","first name","first","last initial","last name","last","full name",
+    "patient","patient name","patient first name","patient first","patient last initial","patient last name","patient last","patient full name",
     "doctor","office"];
   function varMap(ctx){
     const s=state.settings||{};
@@ -551,10 +607,10 @@
     const greet = rf || "there";
     const m={
       "name":greet, "first name":greet, "first":greet,
-      "last name":rl, "last":rl,
+      "last initial":rl, "last name":rl, "last":rl,
       "full name":fullName(rf,rl),
       "patient":pf, "patient name":pf, "patient first name":pf, "patient first":pf,
-      "patient last name":pl, "patient last":pl,
+      "patient last initial":pl, "patient last name":pl, "patient last":pl,
       "patient full name":fullName(pf,pl),
       "doctor":(s.doctor||"").trim(), "office":(s.office||"").trim()
     };
@@ -571,7 +627,7 @@
   }
   function fill(body,ctx){ return applyMap(body, varMap(ctx)); }
   function fillPreview(body){
-    const m=varMap({rFirst:"Susan",rLast:"Miller",pFirst:"Jimmy",pLast:"Miller"});
+    const m=varMap({rFirst:"Susan",rLast:"M",pFirst:"Jimmy",pLast:"M"});
     if(!m["office"]) m["office"]="[your office]";
     if(!m["doctor"]) m["doctor"]="[doctor]";
     return applyMap(body,m);
@@ -657,10 +713,10 @@
     const rec = {
       id: id||uid(),
       patientFirst: $("#c_patientFirst").value.trim(),
-      patientLast:  $("#c_patientLast").value.trim(),
+      patientLast:  initialOf($("#c_patientLast").value),
       patientPhone: normalizePhone($("#c_patientPhone").value),
       guardianFirst:$("#c_guardianFirst").value.trim(),
-      guardianLast: $("#c_guardianLast").value.trim(),
+      guardianLast: initialOf($("#c_guardianLast").value),
       guardianPhone:normalizePhone($("#c_guardianPhone").value),
       type: cTypeVal,
       notes: $("#c_notes").value.trim()
@@ -730,8 +786,8 @@
     const cont=$("#t_vars"); if(!cont) return;
     const custom=(state.settings.variables||[]).map(v=>v.key);
     const groups=[
-      ["Person you're texting", ["first name","last name","full name"]],
-      ["The patient", ["patient","patient last name"]],
+      ["Person you're texting", ["first name","last initial","full name"]],
+      ["The patient", ["patient","patient last initial"]],
       ["Your practice", ["doctor","office"]]
     ];
     let html=groups.map(([label,toks])=>`<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:6px 0">
@@ -1071,10 +1127,10 @@
         const H=rows[0];
         const ci={
           pf: colIndex(H,["patient first","first name","patient name","patient","name"]),
-          pl: colIndex(H,["patient last","last name"]),
+          pl: colIndex(H,["patient last initial","patient last","last initial","last name"]),
           pp: colIndex(H,["patient phone","patient cell","patient mobile"]),
           gf: colIndex(H,["parent first","guardian first","parent name","guardian name","parent","guardian"]),
-          gl: colIndex(H,["parent last","guardian last"]),
+          gl: colIndex(H,["parent last initial","guardian last initial","parent last","guardian last"]),
           gp: colIndex(H,["parent phone","guardian phone","parent cell","guardian cell"]),
           ty: colIndex(H,["type","adult","child"]),
           no: colIndex(H,["note"])
@@ -1093,9 +1149,9 @@
           let type=g(ci.ty).toLowerCase();
           type = type.startsWith("a")?"adult":type.startsWith("b")?"both":"child";
           state.contacts.push({
-            id:uid(), patientFirst:pFirst, patientLast:pLast,
+            id:uid(), patientFirst:pFirst, patientLast:initialOf(pLast),
             patientPhone:normalizePhone(g(ci.pp)),
-            guardianFirst:g(ci.gf), guardianLast:g(ci.gl), guardianPhone:normalizePhone(g(ci.gp)),
+            guardianFirst:g(ci.gf), guardianLast:initialOf(g(ci.gl)), guardianPhone:normalizePhone(g(ci.gp)),
             type, notes:g(ci.no)
           });
           added++;
@@ -1114,7 +1170,7 @@
     const a=document.createElement("a"); a.href=url; a.download=name; document.body.appendChild(a); a.click();
     setTimeout(()=>{document.body.removeChild(a); URL.revokeObjectURL(url);},100);
   }
-  const CSV_HEADERS=["Patient First Name","Patient Last Name","Patient Phone","Parent/Guardian First Name","Parent/Guardian Last Name","Parent/Guardian Phone","Type","Notes"];
+  const CSV_HEADERS=["Patient First Name","Patient Last Initial","Patient Phone","Parent/Guardian First Name","Parent/Guardian Last Initial","Parent/Guardian Phone","Type","Notes"];
   $("#exportCsvBtn").addEventListener("click",()=>{
     const lines=[CSV_HEADERS.join(",")].concat(state.contacts.map(c=>
       [c.patientFirst,c.patientLast,c.patientPhone,c.guardianFirst,c.guardianLast,c.guardianPhone,c.type,c.notes].map(csvEscape).join(",")));
@@ -1124,9 +1180,9 @@
   $("#csvTemplateBtn").addEventListener("click",()=>{
     const text=
 `${CSV_HEADERS.join(",")}
-Jimmy,Miller,,Susan,Miller,(555) 123-4567,child,Braces adjustment 8/1
-Maria,Lopez,(555) 987-6543,,,,adult,Retainer check
-Liam,Chen,(555) 222-3333,Dana,Chen,(555) 444-5555,both,Text either`;
+Jimmy,M,,Susan,M,(555) 123-4567,child,Braces adjustment 8/1
+Maria,L,(555) 987-6543,,,,adult,Retainer check
+Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
     download("patient-import-template.csv", text, "text/csv");
     toast("Template downloaded");
   });
@@ -1226,11 +1282,234 @@ Liam,Chen,(555) 222-3333,Dana,Chen,(555) 444-5555,both,Text either`;
     $("#setCC").value=state.settings.cc||"";
   }
 
+  /* ============ CROSS-DEVICE SYNC via Supabase (end-to-end encrypted) ============ */
+  // Model: your whole dataset is encrypted on THIS device (AES-GCM, key derived
+  // from your account password via PBKDF2) and stored as one ciphertext row in
+  // YOUR Supabase project. Row-Level Security isolates it to your account, and a
+  // realtime subscription pushes changes live to your other devices. Supabase only
+  // ever sees ciphertext. NOTE: HIPAA-compliant only on Supabase's paid HIPAA plan
+  // with a signed BAA — until then this is for TEST data.
+  const SYNC_KEY = KEY + ".sync";     // { url, key, k?(exported AES key b64), salt?(b64) }
+  const SDK_URL = "https://esm.sh/@supabase/supabase-js@2";
+  const ITERS = 200000;
+  let sb = null, sbUser = null, encKey = null, encSalt = null, sbChannel = null, pushTimer = null;
+
+  function bytesToB64(buf){ const b=new Uint8Array(buf); let s=""; for(let i=0;i<b.length;i++) s+=String.fromCharCode(b[i]); return btoa(s); }
+  function b64ToBytes(b64){ const bin=atob(b64); const out=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) out[i]=bin.charCodeAt(i); return out; }
+  function loadSyncMeta(){ try{ return JSON.parse(localStorage.getItem(SYNC_KEY))||{}; }catch(e){ return {}; } }
+  function saveSyncMeta(m){ localStorage.setItem(SYNC_KEY, JSON.stringify(m)); }
+  const showEl=(sel,on)=>{ const el=$(sel); if(el) el.style.display = on?"":"none"; };
+
+  async function loadSDK(){
+    if(window.__sb) return window.__sb;
+    window.__sb = await import(/* @vite-ignore */ SDK_URL);
+    return window.__sb;
+  }
+  async function ensureClient(){
+    const m=loadSyncMeta(); if(!m.url || !m.key) return null;
+    if(sb) return sb;
+    const { createClient } = await loadSDK();
+    sb = createClient(m.url, m.key, { auth:{ persistSession:true, autoRefreshToken:true } });
+    return sb;
+  }
+
+  // --- crypto (key from account password, salt shared via the row) ---
+  async function deriveKey(password, saltBytes){
+    const base=await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveKey"]);
+    return crypto.subtle.deriveKey({name:"PBKDF2", salt:saltBytes, iterations:ITERS, hash:"SHA-256"},
+      base, {name:"AES-GCM", length:256}, true, ["encrypt","decrypt"]);
+  }
+  async function rememberKey(){
+    if(!encKey || !encSalt) return;
+    const raw=await crypto.subtle.exportKey("raw", encKey);
+    const m=loadSyncMeta(); m.k=bytesToB64(raw); m.salt=bytesToB64(encSalt); saveSyncMeta(m);
+  }
+  async function restoreKey(){
+    const m=loadSyncMeta(); if(!m.k || !m.salt) return false;
+    encSalt=b64ToBytes(m.salt);
+    encKey=await crypto.subtle.importKey("raw", b64ToBytes(m.k), {name:"AES-GCM"}, true, ["encrypt","decrypt"]);
+    return true;
+  }
+  async function encryptState(){
+    const iv=crypto.getRandomValues(new Uint8Array(12));
+    const ct=await crypto.subtle.encrypt({name:"AES-GCM", iv}, encKey, new TextEncoder().encode(JSON.stringify(state)));
+    return { iv:bytesToB64(iv), ciphertext:bytesToB64(ct) };
+  }
+  async function decryptRow(row){
+    const pt=await crypto.subtle.decrypt({name:"AES-GCM", iv:b64ToBytes(row.iv)}, encKey, b64ToBytes(row.ciphertext));
+    return JSON.parse(new TextDecoder().decode(pt));
+  }
+
+  function applyIncoming(incoming, force){
+    if(!incoming || !Array.isArray(incoming.contacts) || !Array.isArray(incoming.templates)) throw new Error("bad data");
+    const localT=state.updatedAt||0, remoteT=incoming.updatedAt||0;
+    if(!force && remoteT<=localT) return false;
+    localStorage.setItem(KEY, JSON.stringify(incoming));
+    state=load(); selection={};
+    syncSettingsUI(); renderVars(); renderContacts(); renderTemplates(); populateTplSelect(); renderCompose();
+    return true;
+  }
+
+  // --- push / pull ---
+  async function pushState(){
+    if(!sb || !sbUser || !encKey) return;
+    try{
+      const { iv, ciphertext } = await encryptState();
+      await sb.from("vault").upsert({
+        user_id: sbUser.id, salt: bytesToB64(encSalt), iv, ciphertext,
+        updated_at: new Date(state.updatedAt||Date.now()).toISOString()
+      });
+    }catch(e){ /* offline / transient */ }
+  }
+  function scheduleAutoSync(){ if(!sb || !sbUser || !encKey) return; clearTimeout(pushTimer); pushTimer=setTimeout(pushState, 800); }
+
+  async function fetchRow(){
+    const { data, error } = await sb.from("vault").select("*").eq("user_id", sbUser.id).maybeSingle();
+    if(error) throw error; return data;
+  }
+  async function pullState(silent){
+    if(!sb || !sbUser || !encKey) return;
+    try{
+      const row=await fetchRow(); if(!row) return;
+      const incoming=await decryptRow(row);
+      incoming.updatedAt = incoming.updatedAt || new Date(row.updated_at).getTime();
+      const applied=applyIncoming(incoming, false);
+      if(applied && !silent) toast("Updated from another device");
+    }catch(e){ if(!silent) toast("Couldn't read your synced data"); }
+  }
+  async function subscribeRealtime(){
+    if(!sb || !sbUser) return;
+    try{ if(sbChannel){ await sb.removeChannel(sbChannel); sbChannel=null; } }catch(e){}
+    sbChannel = sb.channel("vault-"+sbUser.id)
+      .on("postgres_changes", { event:"*", schema:"public", table:"vault", filter:"user_id=eq."+sbUser.id },
+        ()=> pullState(false))
+      .subscribe();
+  }
+
+  // --- auth ---
+  async function doAuth(isSignUp){
+    const email=$("#sbEmail").value.trim(), password=$("#sbPass").value;
+    if(!email || !password){ toast("Enter email & password"); return; }
+    const client=await ensureClient(); if(!client){ toast("Add your Supabase project first"); return; }
+    try{
+      const res = isSignUp
+        ? await client.auth.signUp({ email, password })
+        : await client.auth.signInWithPassword({ email, password });
+      if(res.error){ toast(res.error.message); return; }
+      const user = res.data.user || (await client.auth.getUser()).data.user;
+      if(!user){ toast("Check your email to confirm your account, then sign in"); return; }
+      sbUser=user; await afterLogin(password);
+    }catch(e){ toast("Couldn't reach Supabase — check the URL/key"); }
+  }
+  async function afterLogin(password){
+    let row=null;
+    try{ row=await fetchRow(); }catch(e){}
+    encSalt = (row && row.salt) ? b64ToBytes(row.salt) : crypto.getRandomValues(new Uint8Array(16));
+    encKey = await deriveKey(password, encSalt);
+    $("#sbPass").value="";
+    if(row){
+      try{
+        const incoming=await decryptRow(row);
+        incoming.updatedAt = incoming.updatedAt || new Date(row.updated_at).getTime();
+        applyIncoming(incoming, false);
+      }catch(e){ encKey=null; toast("That password doesn't match this account's data"); renderSync(); return; }
+    } else {
+      await pushState(); // first device: seed the row
+    }
+    await rememberKey(); await subscribeRealtime(); renderSync(); toast("Sync is on");
+  }
+  async function unlock(){
+    const pw=$("#sbUnlock").value; if(!pw){ return; }
+    let row=null; try{ row=await fetchRow(); }catch(e){}
+    encSalt = (row && row.salt) ? b64ToBytes(row.salt) : crypto.getRandomValues(new Uint8Array(16));
+    encKey = await deriveKey(pw, encSalt);
+    if(row){
+      try{
+        const incoming=await decryptRow(row);
+        incoming.updatedAt = incoming.updatedAt || new Date(row.updated_at).getTime();
+        applyIncoming(incoming, false);
+      }catch(e){ encKey=null; toast("Wrong password"); renderSync(); return; }
+    } else { await pushState(); }
+    await rememberKey(); await subscribeRealtime(); $("#sbUnlock").value=""; renderSync(); toast("Unlocked");
+  }
+  async function signOut(){
+    try{ if(sbChannel){ await sb.removeChannel(sbChannel); sbChannel=null; } }catch(e){}
+    try{ if(sb) await sb.auth.signOut(); }catch(e){}
+    sbUser=null; encKey=null; encSalt=null;
+    const m=loadSyncMeta(); delete m.k; delete m.salt; saveSyncMeta(m);
+    renderSync(); toast("Signed out on this device");
+  }
+  async function saveConnection(){
+    const url=$("#sbUrl").value.trim().replace(/\/+$/,""); const key=$("#sbKey").value.trim();
+    if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)){ toast("Enter your project URL (https://xxxx.supabase.co)"); return; }
+    if(key.length<20){ toast("Paste your anon (public) key"); return; }
+    const m=loadSyncMeta(); m.url=url; m.key=key; delete m.k; delete m.salt; saveSyncMeta(m);
+    sb=null; sbUser=null; encKey=null;
+    try{ await ensureClient(); toast("Project saved — now sign in"); }
+    catch(e){ toast("Saved, but couldn't load the Supabase library (offline?)"); }
+    renderSync();
+  }
+  function changeProject(){
+    const m=loadSyncMeta(); saveSyncMeta({}); sb=null; sbUser=null; encKey=null;
+    $("#sbUrl").value=m.url||""; $("#sbKey").value=""; renderSync();
+  }
+
+  function renderSync(){
+    const m=loadSyncMeta();
+    const hasConn=!!(m.url && m.key), signedIn=!!sbUser, unlocked=!!encKey;
+    showEl("#syncConnect", !hasConn);
+    showEl("#syncAuth", hasConn && !signedIn);
+    showEl("#syncUnlock", hasConn && signedIn && !unlocked);
+    showEl("#syncActive", hasConn && signedIn && unlocked);
+    const status=$("#syncStatus"), help=$("#syncHelp");
+    if(!hasConn){
+      status.innerHTML=`<span class="faint">Off — your data stays only on this device.</span>`;
+      help.innerHTML=`Create a free Supabase project, run the setup SQL (in the README), then paste your Project URL &amp; anon key above.`;
+    } else if(!signedIn){
+      status.innerHTML=`<span class="faint">Connected to your project — sign in to start syncing.</span>`;
+      help.innerHTML=`First time? Tap <b>Create account</b>. On your other devices, use the <b>same email &amp; password</b>.`;
+    } else if(!unlocked){
+      status.innerHTML=`<span style="color:var(--warn);font-weight:700">● Signed in — locked</span>`;
+      help.innerHTML=`Enter your password to decrypt your data on this device.`;
+    } else {
+      status.innerHTML=`<span style="color:var(--ok);font-weight:700">● Live sync on</span> · ${esc(sbUser.email||"")}`;
+      $("#syncActiveUI").innerHTML=`<div class="row wrap"><button class="btn sm" id="sbSyncNowBtn">↻ Sync now</button></div>
+        <p class="small muted" style="margin:8px 0 0">Changes save automatically and appear on your other signed-in devices within a moment.</p>`;
+      const b=$("#sbSyncNowBtn"); if(b) b.addEventListener("click",async()=>{ await pullState(false); await pushState(); toast("Synced"); });
+      help.innerHTML=`Live on every device signed in with this account. Reminder: keep it to <b>test data</b> until your project is on Supabase's HIPAA plan with a signed BAA.`;
+    }
+  }
+
+  $("#sbConnectBtn").addEventListener("click", saveConnection);
+  $("#sbSignInBtn").addEventListener("click", ()=>doAuth(false));
+  $("#sbSignUpBtn").addEventListener("click", ()=>doAuth(true));
+  $("#sbEditConnBtn").addEventListener("click", changeProject);
+  $("#sbUnlockBtn").addEventListener("click", unlock);
+  $("#sbSignOutBtn").addEventListener("click", signOut);
+  $("#sbSignOutBtn2").addEventListener("click", signOut);
+  window.addEventListener("focus", ()=>{ if(sb && sbUser && encKey) pullState(true); });
+
+  async function initSync(){
+    renderSync();
+    const m=loadSyncMeta(); if(!m.url || !m.key) return;
+    let client; try{ client=await ensureClient(); }catch(e){ return; }
+    if(!client) return;
+    try{
+      const { data:{ session } } = await client.auth.getSession();
+      if(session && session.user){
+        sbUser=session.user;
+        if(await restoreKey()){ await subscribeRealtime(); await pullState(true); }
+      }
+    }catch(e){}
+    renderSync();
+  }
+
   /* ================= init ================= */
   updateVarHint();
   renderVars();
   populateTplSelect();
   renderCompose();
+  initSync();
   if("serviceWorker" in navigator){ navigator.serviceWorker.register("sw.js").catch(()=>{}); }
 })();
 </script>

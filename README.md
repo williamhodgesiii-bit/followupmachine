@@ -7,14 +7,16 @@ Built for the "it takes me 20 minutes of copy-pasting to text 5–6 patients"
 problem. With this, that same batch takes about a minute — and you never retype
 a name or paste text again.
 
-- ✅ Save patients once: **first & last name, phone(s), and adult / child / both**, so you can text the patient, a parent, or either
+- ✅ Save patients once: **first name, last initial, phone(s), and adult / child / both**
 - ✅ Reusable **message templates** with fill-in-the-blanks that fill automatically per person
-- ✅ Built-in blanks: `{first name}` · `{last name}` · `{full name}` · `{patient}` · `{doctor}` · `{office}` — **plus your own custom variables**
+- ✅ Built-in blanks: `{first name}` · `{last initial}` · `{full name}` · `{patient}` · `{doctor}` · `{office}` — **plus your own custom variables**
 - ✅ One-tap send: opens Messages pre-filled per person, **individually** (no group threads), with progress tracking
-- ✅ **CSV import/export** of patients
-- ✅ **Local-only** storage (no server, no accounts) with backup/restore
+- ✅ **Cross-device sync** via your own Supabase project — **end-to-end encrypted** (see the big note below)
+- ✅ **CSV import/export**, local backup/restore, and an optional **Mac auto-sender**
 - ✅ Installable (PWA) with a built-in **?** walkthrough
-- ✅ Optional **Mac auto-sender** for fully hands-free batches
+
+We deliberately store only a **last initial**, never a full last name — less
+identifying information to hold (the "minimum necessary" idea).
 
 ---
 
@@ -22,16 +24,10 @@ a name or paste text again.
 
 Apple does **not** let a website (or any app) silently send texts from an
 iPhone — that's their anti-spam rule, with no way around it on the phone itself.
-So on iPhone the flow is:
-
-> Tap **Send** → Messages opens **already filled in with the right person and
-> message** → you tap the blue arrow → swipe back → next person is ready.
-
-**One tap per person**, no typing or pasting. Six patients drops from ~20
-minutes to ~1 minute, and it sends as **iMessage automatically** (blue).
-
-**Want truly zero taps?** On a **Mac**, the included script sends the whole
-batch hands-free — see [Zero-tap on a Mac](#optional-zero-tap-on-a-mac).
+So on iPhone: tap **Send** → Messages opens **already filled in** → tap the blue
+arrow → swipe back → next person. **One tap per person**, no typing or pasting,
+and it sends as **iMessage automatically** (blue). Want zero taps? See
+[Zero-tap on a Mac](#optional-zero-tap-on-a-mac).
 
 ---
 
@@ -39,99 +35,97 @@ batch hands-free — see [Zero-tap on a Mac](#optional-zero-tap-on-a-mac).
 
 There's also a **?** button at the top of the app with this same guide.
 
-1. **Add patients** — *Patients* tab → **+ Add**. Name, who you text (parent /
-   adult / either), phone number(s). Or **Import CSV** for a whole list.
+1. **Add patients** — *Patients* tab → **+ Add**. First name, **last initial**,
+   who you text (parent / adult / either), phone number(s). Or **Import CSV**.
 2. **Set names & make blanks** — *Settings* → fill in the **doctor** and
-   **office** names, and add any **custom variables** you want (e.g. a booking
-   link). These power `{doctor}`, `{office}`, and `{your own}` blanks.
-3. **Write messages** — *Messages* tab → **+ Add**. Type it once and tap the
-   blanks to drop them in. A live preview shows exactly how it'll read.
-4. **Send** — *Send* tab → pick a message → check who gets it → **Start
-   sending**. Tap through on iPhone, or auto-send on a Mac.
+   **office** names, and add any **custom variables** (e.g. a booking link).
+3. **Write messages** — *Messages* tab → **+ Add**. Type once, tap the blanks. A
+   live preview shows exactly how it'll read.
+4. **Send** — *Send* tab → pick a message → check who gets it → **Start sending**.
 
 ---
 
 ## Placeholders (the fill-in-the-blanks)
 
-Type these in any message and they fill in automatically for each recipient:
-
 | Placeholder | Fills in with |
 |---|---|
 | `{first name}` (or `{name}`) | first name of whoever you're texting (patient **or** parent) |
-| `{last name}` | their last name |
-| `{full name}` | their first + last name |
+| `{last initial}` | their last initial (e.g. `M`) |
+| `{full name}` | first name + last initial (e.g. `Susan M`) |
 | `{patient}` | the patient's first name (handy when texting a parent) |
-| `{patient last name}` | the patient's last name |
+| `{patient last initial}` | the patient's last initial |
 | `{doctor}` | your doctor name — set once in **Settings** |
 | `{office}` | your office name — set once in **Settings** |
 | `{your own}` | any **custom variable** you create in Settings |
 
-**Custom variables:** In *Settings → Your own blanks*, add something like
-`booking link` = `hodgesortho.com/book`, then use `{booking link}` in any
-message. Great for links, phone numbers, or a standard sign-off.
-
-Example message:
-`Hi {first name}, {doctor} at {office} checking in on {patient} after the recent visit — book anytime at {booking link}.`
-→ *"Hi Susan, Dr. Hodges at Hodges Orthodontics checking in on Jimmy after the recent visit — book anytime at hodgesortho.com/book."*
-
-*(Typo a blank, like `{frist name}`? It stays visible as-is in the preview so
-you can catch it before sending.)*
+Example: `Hi {first name}, {doctor} at {office} checking in on {patient} — book anytime at {booking link}.`
+→ *"Hi Susan, Dr. Hodges at Hodges Orthodontics checking in on Jimmy — book anytime at hodgesortho.com/book."*
 
 ---
 
-## Hosting it (so you can open it on your phone)
+## Cross-device sync (Supabase, end-to-end encrypted)
 
-The app is plain static files, so **any static host works** — and it uses only
-relative paths, so it serves correctly from a domain root with zero config.
+> ## ⚠️ TEST DATA ONLY (for now)
+> This sync works today on a **free** Supabase project, but a free project is
+> **not HIPAA-compliant**. Supabase only signs a **BAA** on its **Team + HIPAA
+> add-on** plan (**~$950+/month**). **Use fake/test names until your project is
+> on that plan and you've signed the BAA.** The app end-to-end encrypts your
+> data (Supabase only ever stores ciphertext), but encryption alone is *not*
+> "HIPAA compliant" without the BAA + eligible plan.
 
-- **Vercel:** import the repo, no framework preset needed, deploy. Done.
-- **GitHub Pages:** repo **Settings → Pages → Deploy from a branch →** pick the
-  branch and `/ (root)`. (Free Pages needs a **public** repo — safe here, since
-  the repo holds only app code, never patient data.)
+**How it works:** your whole dataset is encrypted **on your device** (AES-GCM,
+key derived from your account password) and stored as one ciphertext row in
+*your* Supabase project. Row-Level Security isolates it to your account, and a
+realtime subscription keeps every signed-in device live-updated. It syncs
+automatically on phone **and** computers — no file juggling.
 
-Then open your URL in **Safari on iPhone → Share → Add to Home Screen** so it
-opens like an app. Do the same in any desktop browser.
+### Set it up (~10 min)
+1. Create a free project at **supabase.com**.
+2. **SQL Editor → New query** → paste [`supabase-setup.sql`](supabase-setup.sql) → **Run**.
+3. (For easy testing) **Authentication → Providers → Email** → turn **off**
+   "Confirm email" so you can sign in immediately. (Turn it back on later.)
+4. **Project Settings → API** → copy your **Project URL** and **anon public key**.
+5. In the app: **Settings → Sync** → paste both → **Save connection**.
+6. **Create account** with an email + password. Use the **same email + password
+   on every device** — that password also unlocks your encrypted data, so write
+   it down; it can't be recovered.
 
-> **No patient information is ever stored in this project** — only the app's
-> code. Patient data lives only in the browser on each device you use.
+Now edits on one device appear on the others within a moment. Before entering
+any *real* patient, upgrade to the Supabase HIPAA plan and sign the BAA.
+
+> Prefer a genuinely free + compliant route? **Firebase** gives a BAA at no cost.
+> Say the word and I'll switch the sync layer to it.
 
 ---
 
 ## Optional: zero-tap on a Mac
 
 For no-taps-at-all sending on a Mac:
-
-1. Sign in to iMessage in the **Messages** app (Messages → Settings → iMessage).
+1. Sign in to iMessage in the **Messages** app.
 2. In Follow-Up Machine, build your batch and tap **"Have a Mac? Download a file
-   to auto-send them all"** — this saves `followup-macsend.txt` to Downloads.
+   to auto-send them all"** — saves `followup-macsend.txt` to Downloads.
 3. Open [`tools/send-imessages.applescript`](tools/send-imessages.applescript)
-   in the **Script Editor** app (already on every Mac) and press ▶ **Run**.
-   - It finds the file in Downloads automatically, shows you the count, and on
-     **Send** fires them all off as iMessage. First run, macOS asks permission
-     to control Messages — click **OK**.
-   - Tip: in Script Editor, **File → Export → Application** turns it into a
-     double-click app you can keep in your Dock.
-
-*(This is a power-user extra — most people are happy with the one-tap iPhone
-flow and never need it.)*
+   in **Script Editor** and press ▶ **Run**. It finds the file automatically,
+   shows the count, and on **Send** fires them all off as iMessage. (First run,
+   macOS asks permission to control Messages — click **OK**. Tip: File → Export
+   → **Application** makes it a double-click app.)
 
 ---
 
 ## Your data & privacy
 
-- Everything you enter (patients, messages, custom variables, settings) is saved
-  **only in your browser on that device**. Nothing is uploaded anywhere.
-- To move between devices: **Settings → Back up all data**, then **Restore from
-  backup** on the other device. (Since sending is easiest from your Mac/iPhone,
-  keeping the master list there keeps things simple.)
-- **Settings → Erase everything** wipes it from that device.
+- With sync **off**, everything stays **only in your browser on that device**.
+- With sync **on**, data is **end-to-end encrypted on your device** before it
+  reaches Supabase — the server only ever holds unreadable ciphertext.
+- We store only a **last initial**, not a full last name (minimum necessary).
+- **Settings → Your data** has a plain backup/restore; **Erase everything** wipes
+  the device.
 
 ### A few sensible texting habits
 - Keep it general — avoid specific medical/treatment details in a text.
-- Only text people who expect to hear from your office.
-- If someone replies **STOP** (or asks you to), stop texting them.
-- Your office should follow the usual rules for patient communication (e.g.
-  HIPAA and texting-consent/TCPA). This tool just helps you send faster.
+- iMessage/SMS isn't a HIPAA-encrypted channel; text only patients who expect it,
+  and stop if they ask (reply **STOP**).
+- Follow your usual rules for patient communication (HIPAA, texting-consent/TCPA).
 
 ---
 
@@ -141,12 +135,17 @@ flow and never need it.)*
 |------|-----------|
 | `index.html` | The whole app (works offline, no installs, no accounts) |
 | `manifest.webmanifest`, `sw.js`, `icons/` | Make it installable & app-like |
+| `supabase-setup.sql` | One-time database setup for cross-device sync |
 | `patient-import-template.csv` | Sample layout for importing your patient list |
 | `tools/send-imessages.applescript` | Optional Mac "zero-tap" auto-sender |
 
-The app is a single self-contained HTML file with no external dependencies, so
-it keeps working even with no internet and never phones home.
+The sync feature loads the Supabase client from a CDN at runtime; everything
+else is a single self-contained HTML file with no build step.
+
+## Hosting
+Any static host works (relative paths, no config). On **Vercel**: import the
+repo, no framework preset, deploy. Then open the URL in **Safari → Share → Add
+to Home Screen**.
 
 ## Make changes
-Want different starter messages, colors, or wording? It's all plain HTML/CSS/JS
-in `index.html`. Edit, commit, and your host redeploys automatically.
+It's all plain HTML/CSS/JS in `index.html`. Edit, commit, and your host redeploys.
