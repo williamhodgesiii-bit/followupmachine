@@ -573,7 +573,7 @@
       id:c.id||uid(),
       patientFirst:c.patientFirst||"", patientLast:initialOf(c.patientLast), patientPhone:c.patientPhone||"",
       guardianFirst:c.guardianFirst||"", guardianLast:initialOf(c.guardianLast), guardianPhone:c.guardianPhone||"",
-      type:c.type||"child", notes:c.notes||""
+      type:c.type||"child", notes:c.notes||"", lastTexted:c.lastTexted||0
     }));
     return data;
   }
@@ -599,6 +599,16 @@
     return p;
   }
   const fullName = (f,l)=>((f||"")+" "+(l||"")).replace(/\s+/g," ").trim();
+  function sinceStr(ts){
+    if(!ts) return "";
+    const d=Math.floor((Date.now()-ts)/86400000);
+    if(d<=0) return "today";
+    if(d===1) return "yesterday";
+    if(d<7) return d+" days ago";
+    if(d<14) return "last week";
+    return new Date(ts).toLocaleDateString(undefined,{month:"short",day:"numeric"});
+  }
+  function markContactTexted(id){ const c=state.contacts.find(x=>x.id===id); if(c){ c.lastTexted=Date.now(); save(); } }
 
   /* ---------- variables / fill ---------- */
   function varKeyNorm(k){ return (k||"").toLowerCase().replace(/[{}]/g,"").replace(/\s+/g," ").trim(); }
@@ -745,10 +755,11 @@
       guardianLast: initialOf($("#c_guardianLast").value),
       guardianPhone:normalizePhone($("#c_guardianPhone").value),
       type: cTypeVal,
-      notes: $("#c_notes").value.trim()
+      notes: $("#c_notes").value.trim(),
+      lastTexted: 0
     };
     if(!rec.patientFirst){ return; }
-    if(id){ const i=state.contacts.findIndex(x=>x.id===id); state.contacts[i]=rec; }
+    if(id){ const i=state.contacts.findIndex(x=>x.id===id); rec.lastTexted=state.contacts[i].lastTexted||0; state.contacts[i]=rec; }
     else state.contacts.push(rec);
     state.contacts.sort((a,b)=>a.patientFirst.localeCompare(b.patientFirst));
     save(); contactDialog.close(); renderContacts(); toast(id?"Saved":"Patient added");
@@ -791,6 +802,7 @@
           <div class="grow">
             <div class="row" style="gap:8px"><span class="name">${esc(fullName(c.patientFirst,c.patientLast))}</span>${typePill(c.type)}</div>
             ${p}${g}
+            ${c.lastTexted?`<div class="small" style="color:var(--ok);font-weight:600">Last texted: ${esc(sinceStr(c.lastTexted))}</div>`:""}
             ${c.notes?`<div class="small faint" style="margin-top:3px">${esc(c.notes)}</div>`:""}
           </div>
           <button class="btn ghost sm edit">Edit</button>
@@ -935,7 +947,7 @@
         <div class="selectable ${on?'on':''}" data-sel="${c.id}">
           <span class="checkbox"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg></span>
           <span class="grow">
-            <span class="name">${esc(fullName(c.patientFirst,c.patientLast))}</span> ${typePill(c.type)}
+            <span class="name">${esc(fullName(c.patientFirst,c.patientLast))}</span> ${typePill(c.type)}${(c.lastTexted && (Date.now()-c.lastTexted)<30*86400000)?` <span class="pill both">texted ${esc(sinceStr(c.lastTexted))}</span>`:""}
             <div class="small muted">${sub||'<span class="pill child">no phone saved</span>'}</div>
           </span>
         </div>
@@ -1086,7 +1098,7 @@
     const cm=$("#copyMsg"); if(cm) cm.addEventListener("click",async()=>{await copyText(queue[qi].body); toast("Message copied");});
     const cn=$("#copyNum"); if(cn) cn.addEventListener("click",async()=>{await copyText(queue[qi].phone); toast("Number copied");});
     const sk=$("#skipBtn"); if(sk) sk.addEventListener("click",()=>{ queue[qi].status="skip"; advance(); });
-    const dn=$("#doneBtn"); if(dn) dn.addEventListener("click",()=>{ queue[qi].status="sent"; advance(); });
+    const dn=$("#doneBtn"); if(dn) dn.addEventListener("click",()=>{ queue[qi].status="sent"; markContactTexted(queue[qi].contactId); advance(); });
     $$("[data-reopen]").forEach(b=>b.addEventListener("click",()=>{ qi=+b.dataset.reopen; queue[qi].status="pending"; renderQueue(); }));
   }
   // Export the batch as a TAB-separated file the optional Mac AppleScript can auto-send.
@@ -1095,6 +1107,7 @@
       .map(q => q.phone.replace(/[^\d+]/g,"") + "\t" + q.body.replace(/\r?\n/g,"\\n"));
     if(!lines.length){ toast("No phone numbers to export"); return; }
     download("followup-macsend.txt", lines.join("\n"), "text/plain");
+    const now=Date.now(); queue.filter(q=>q.phone).forEach(q=>{ const c=state.contacts.find(x=>x.id===q.contactId); if(c) c.lastTexted=now; }); save();
     toast("Saved to Downloads — now open your Mac sender");
   }
 
@@ -1107,7 +1120,7 @@
   }
   document.addEventListener("visibilitychange",()=>{
     if(document.visibilityState==="visible" && awaiting>-1 && sendDialog.open){
-      if(queue[awaiting] && queue[awaiting].status==="pending"){ queue[awaiting].status="sent"; }
+      if(queue[awaiting] && queue[awaiting].status==="pending"){ queue[awaiting].status="sent"; markContactTexted(queue[awaiting].contactId); }
       awaiting=-1; advance(); toast("Marked as sent");
     }
   });
