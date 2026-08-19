@@ -80,15 +80,16 @@ rest** (not per-user encryption); real compliance still requires the BAA + plan.
    "Allow new users to sign up".
 4. **Create each staff login:** **Authentication → Users → Add user** (email +
    password) for each person.
-5. **Connect the app:** open `index.html` and set these two lines near the top of
-   the `<script>` (search for `SUPABASE_URL`):
-   ```js
-   const SUPABASE_URL = "https://YOURPROJECT.supabase.co";
-   const SUPABASE_ANON_KEY = "your-anon-public-key";
-   ```
-   Both come from **Supabase → Project Settings → API** (the **anon public** key —
-   never the `service_role` key). The anon key is designed to be public, so it's
-   safe to commit. Redeploy.
+5. **Connect the app — Vercel environment variables** (keeps the key out of your
+   code): in Vercel → your project → **Settings → Environment Variables**, add
+   - `SUPABASE_URL` = `https://YOURPROJECT.supabase.co`
+   - `SUPABASE_ANON_KEY` = your **anon public** key
+
+   (both from **Supabase → Project Settings → API** — never the `service_role`
+   key). Add them to **Production** (and Preview/Development if you use those),
+   then **redeploy**. The app reads them at `/api/config`, so nothing sensitive
+   lives in the repo. *(Alternative: hardcode the two `SUPABASE_URL` /
+   `SUPABASE_ANON_KEY` constants near the top of the `<script>` in `index.html`.)*
 
 Now every device just opens the app and signs in — no other setup. Before any
 *real* patient goes in, upgrade to the Supabase HIPAA plan and sign the BAA.
@@ -127,7 +128,8 @@ Now every device just opens the app and signs in — no other setup. Before any
 
 | File | What it is |
 |------|-----------|
-| `index.html` | The whole app (set your Supabase URL/key near the top of the script) |
+| `index.html` | The whole app |
+| `api/config.js` | Vercel function that feeds your Supabase env vars to the app |
 | `manifest.webmanifest`, `sw.js`, `icons/` | Installable / app-like |
 | `supabase-setup.sql` | One-time database setup for shared team sync |
 | `patient-import-template.csv` | Sample layout for importing patients |
