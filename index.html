@@ -458,6 +458,28 @@
   <div class="sheet-body" id="sendBody"></div>
 </dialog>
 
+<!-- ============ MAC AUTO-SEND DIALOG ============ -->
+<dialog id="macDialog">
+  <div class="sheet-head">
+    <h2>Auto-send on your Mac</h2>
+    <button type="button" class="x" data-close>×</button>
+  </div>
+  <div class="sheet-body">
+    <p class="small muted" style="margin-top:0">This is the hands-free option for a Mac. On iPhone you don't need it — just tap “Open Messages &amp; send” for each person.</p>
+    <ol class="steps" style="margin-top:10px">
+      <li><b>Download the file</b><span class="small muted">Tap the button below — it saves <b>followup-macsend.txt</b> to your Mac's Downloads folder.</span></li>
+      <li><b>Open your Mac sender</b><span class="small muted">Double-click your <b>Follow-Up Sender</b> app (you set this up once from <code>tools/send-imessages.applescript</code> — see the README's “Zero-tap on a Mac”). It finds the file in Downloads automatically.</span></li>
+      <li><b>Confirm &amp; send</b><span class="small muted">It shows how many texts and, when you click <b>Send</b>, fires them all off as iMessage — no tapping per patient.</span></li>
+    </ol>
+    <div class="okbox" style="margin-top:6px">Sign in to iMessage in the Mac's Messages app first (Messages → Settings → iMessage).</div>
+  </div>
+  <div class="sheet-foot">
+    <span class="grow"></span>
+    <button type="button" class="btn ghost" data-close>Close</button>
+    <button type="button" class="btn primary" id="macDownloadBtn">⬇ Download the file</button>
+  </div>
+</dialog>
+
 <!-- ============ HELP DIALOG ============ -->
 <dialog id="helpDialog">
   <div class="sheet-head">
@@ -674,16 +696,37 @@
   }
   $$("#c_type button").forEach(b=>b.addEventListener("click",()=>setCType(b.dataset.v)));
 
+  // Live phone formatting → (xxx) xxx-xxxx as you type (leaves +international alone)
+  function formatPhoneInput(el){
+    const raw=el.value;
+    if(raw.trim().startsWith("+")) return;
+    const caret=(el.selectionStart==null)?raw.length:el.selectionStart;
+    const before=raw.slice(0,caret).replace(/\D/g,"").length;   // how many digits precede the cursor
+    let d=raw.replace(/\D/g,"");
+    if(d.length===11 && d[0]==="1") d=d.slice(1);               // tolerate a leading US "1"
+    d=d.slice(0,10);
+    let out;
+    if(d.length===0) out="";
+    else if(d.length<4) out="("+d;
+    else if(d.length<7) out="("+d.slice(0,3)+") "+d.slice(3);
+    else out="("+d.slice(0,3)+") "+d.slice(3,6)+"-"+d.slice(6);
+    el.value=out;
+    let pos=0, seen=0;                                          // restore the cursor after the same digit
+    while(pos<out.length && seen<before){ const c=out.charCodeAt(pos); if(c>=48 && c<=57) seen++; pos++; }
+    try{ el.setSelectionRange(pos,pos); }catch(e){}
+  }
+  ["#c_patientPhone","#c_guardianPhone"].forEach(sel=>{ const el=$(sel); if(el) el.addEventListener("input",()=>formatPhoneInput(el)); });
+
   function openContact(c){
     $("#contactForm").reset();
     $("#c_id").value = c?c.id:"";
     $("#contactDlgTitle").textContent = c ? "Edit patient" : "Add patient";
     $("#c_patientFirst").value = c?c.patientFirst||"":"";
     $("#c_patientLast").value  = c?c.patientLast||"":"";
-    $("#c_patientPhone").value = c?c.patientPhone||"":"";
+    $("#c_patientPhone").value = c?prettyPhone(c.patientPhone):"";
     $("#c_guardianFirst").value= c?c.guardianFirst||"":"";
     $("#c_guardianLast").value = c?c.guardianLast||"":"";
-    $("#c_guardianPhone").value= c?c.guardianPhone||"":"";
+    $("#c_guardianPhone").value= c?prettyPhone(c.guardianPhone):"";
     $("#c_notes").value = c?c.notes||"":"";
     setCType(c?c.type||"child":"child");
     $("#deleteContactBtn").style.display = c ? "" : "none";
@@ -1033,11 +1076,11 @@
       `<div class="card tight" style="margin-top:14px">
          <div class="small muted" style="margin-bottom:4px">All recipients</div>${rows}
          <div style="margin-top:10px;text-align:center">
-           <button class="link small" id="macExport">⚡ Have a Mac? Download a file to auto-send them all</button>
+           <button class="link small" id="macExport">⚡ Have a Mac? Auto-send the whole batch</button>
          </div>
        </div>`;
 
-    const mx=$("#macExport"); if(mx) mx.addEventListener("click",exportMacSendFile);
+    const mx=$("#macExport"); if(mx) mx.addEventListener("click",()=>$("#macDialog").showModal());
     const goEl=$("#sendGo");
     if(goEl) goEl.addEventListener("click",()=>{ awaiting=qi; });
     const cm=$("#copyMsg"); if(cm) cm.addEventListener("click",async()=>{await copyText(queue[qi].body); toast("Message copied");});
@@ -1052,7 +1095,7 @@
       .map(q => q.phone.replace(/[^\d+]/g,"") + "\t" + q.body.replace(/\r?\n/g,"\\n"));
     if(!lines.length){ toast("No phone numbers to export"); return; }
     download("followup-macsend.txt", lines.join("\n"), "text/plain");
-    toast("Saved followup-macsend.txt");
+    toast("Saved to Downloads — now open your Mac sender");
   }
 
   function advance(){
@@ -1072,6 +1115,7 @@
   /* ---------- dialog close wiring ---------- */
   $$("[data-close]").forEach(b=>b.addEventListener("click",()=>b.closest("dialog").close()));
   $$("[data-close-send]").forEach(b=>b.addEventListener("click",()=>sendDialog.close()));
+  { const md=$("#macDownloadBtn"); if(md) md.addEventListener("click", exportMacSendFile); }
   sendDialog.addEventListener("close",()=>{ renderCompose(); });
 
   /* ================= CSV import / export ================= */

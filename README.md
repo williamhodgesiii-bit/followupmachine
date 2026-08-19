@@ -99,8 +99,8 @@ Now every device just opens the app and signs in — no other setup. Before any
 ## Optional: zero-tap on a Mac
 
 1. Sign in to iMessage in the **Messages** app.
-2. Build your batch and tap **"Have a Mac? Download a file to auto-send them
-   all"** — saves `followup-macsend.txt` to Downloads.
+2. Build your batch and tap **"Have a Mac? Auto-send the whole batch"** — a short
+   how-to opens; tap **Download the file** to save `followup-macsend.txt` to Downloads.
 3. Open [`tools/send-imessages.applescript`](tools/send-imessages.applescript) in
    **Script Editor** → ▶ **Run**. It finds the file, shows the count, and on
    **Send** fires them off as iMessage. (First run, allow it to control Messages.
