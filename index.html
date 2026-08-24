@@ -494,7 +494,7 @@
     <ol class="steps" style="margin-top:14px">
       <li><b>Add your patients</b><span class="small muted">Patients tab → <b>+ Add</b>. Enter their name, choose whether you text a parent, the patient, or either, and add the phone number(s). Have a list? Use <b>Import CSV</b>.</span></li>
       <li><b>Write your messages</b><span class="small muted">Messages tab → <b>+ Add</b>. Type it once and tap the blanks — <code class="var">{first name}</code>, <code class="var">{patient}</code>, <code class="var">{doctor}</code>, <code class="var">{office}</code> — they fill in for each person. Set the doctor/office names (and make your own blanks) in Settings.</span></li>
-      <li><b>Send</b><span class="small muted">Send tab → pick a message → check who gets it → <b>Start sending</b>. On iPhone, each text opens in Messages ready to go — tap the blue arrow. On a Mac you can auto-send the whole batch (see below).</span></li>
+      <li><b>Send</b><span class="small muted">Send tab → pick a message → check who gets it → <b>Start sending</b>. On iPhone, each text opens in Messages ready to go — <b>tap the send arrow</b>. Messages go out as iMessage (blue) or a regular text (green) automatically — both deliver. On a Mac you can auto-send the whole batch (see below).</span></li>
     </ol>
     <div class="card tight" style="margin-bottom:0">
       <b class="small">Zero-tap on a Mac</b>
@@ -1069,6 +1069,7 @@
         <div class="msg-preview">${esc(cur.body)}</div>
         <div class="spacer"></div>
         ${sendControls}
+        ${(!noPhone && isTouch)?`<div class="hint" style="text-align:center;margin-top:8px">In Messages, tap the send arrow to send. <b>Blue</b> = iMessage · <b>green</b> = regular text — both go through.</div>`:""}
         <div class="spacer"></div>
         <div class="row">
           <button class="btn ghost grow" id="skipBtn">Skip</button>
