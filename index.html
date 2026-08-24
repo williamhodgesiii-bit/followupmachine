@@ -70,6 +70,8 @@
   header.appbar .tag{font-size:.72rem;opacity:.85;margin-top:1px}
   header.appbar .help{border:0;background:rgba(255,255,255,.18);color:#fff;width:34px;height:34px;border-radius:50%;
     font-size:1.05rem;font-weight:700;cursor:pointer;flex:0 0 auto}
+  header.appbar .hdrbtn{border:0;background:rgba(255,255,255,.18);color:#fff;padding:7px 12px;border-radius:999px;
+    font-size:.74rem;font-weight:700;cursor:pointer;flex:0 0 auto;white-space:nowrap}
   main{max-width:720px; margin:0 auto; padding:16px 16px 24px}
   .view{display:none}
   .view.active{display:block; animation:fade .18s ease}
@@ -204,6 +206,7 @@
     <h1>Follow-Up Machine</h1>
     <div class="tag">Personal patient check-ins, in seconds</div>
   </div>
+  <button class="hdrbtn" id="logoutBtn" title="Log out">⎋ Log out</button>
   <button class="help" id="helpBtn" title="How to use" aria-label="How to use">?</button>
 </header>
 
@@ -1233,6 +1236,7 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
   $("#setCC").value=state.settings.cc||"";
   $("#setOffice").addEventListener("input",e=>{state.settings.office=e.target.value; save();});
   $("#setDoctor").addEventListener("input",e=>{state.settings.doctor=e.target.value; save();});
+  ["#setOffice","#setDoctor"].forEach(sel=>{ const el=$(sel); if(el) el.addEventListener("change",()=>toast("Saved ✓")); });
   $("#setCC").addEventListener("change",e=>{state.settings.cc=e.target.value; save();});
   $("#verLine").textContent="Follow-Up Machine v"+VERSION+" · your data stays on this device";
 
@@ -1429,11 +1433,16 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
     signedIn=true; $("#gatePass").value="";
     try{
       const { data }=await sb.from("workspace").select("data").eq("id","default").maybeSingle();
-      if(data && data.data){ applyIncoming(data.data, true); } else { await pushWorkspace(); }
+      const remote = data && data.data;
+      // Respect timestamps (don't force): adopt the shared copy only if it's newer;
+      // otherwise push our local copy up so nothing typed offline is lost.
+      const applied = (remote && Array.isArray(remote.contacts)) ? applyIncoming(remote, false) : false;
+      if(!applied) await pushWorkspace();
     }catch(e){}
     await subscribeRealtime(); armMidnight(); renderAll(); hideGate();
   }
   async function doSignOut(reason){
+    try{ if(signedIn && sb) await pushWorkspace(); }catch(e){}   // flush the latest to the shared workspace BEFORE wiping local
     try{ if(channel){ await sb.removeChannel(channel); channel=null; } }catch(e){}
     try{ if(sb) await sb.auth.signOut(); }catch(e){}
     signedIn=false; currentUser=null; clearTimeout(midnightTimer); clearTimeout(pushTimer);
@@ -1448,10 +1457,15 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
   }
   window.addEventListener("focus", onReturn);
   document.addEventListener("visibilitychange", ()=>{ if(document.visibilityState==="visible") onReturn(); });
+  window.addEventListener("pagehide", ()=>{ if(signedIn) pushWorkspace(); });   // best-effort flush when the tab/app closes
 
   $("#gateSignIn").addEventListener("click", signIn);
   $("#gatePass").addEventListener("keydown", e=>{ if(e.key==="Enter") signIn(); });
   { const b=$("#acctSignOut"); if(b) b.addEventListener("click", ()=>doSignOut()); }
+  { const b=$("#logoutBtn"); if(b) b.addEventListener("click", ()=>doSignOut()); }
+  // Belt-and-suspenders: even if the midnight timer is throttled/asleep, this
+  // checks the Central date every minute and signs out once it rolls past midnight.
+  setInterval(()=>{ if(signedIn && localStorage.getItem(AUTH_DAY)!==centralDay()) doSignOut("Signed out for the night (midnight Central). Please sign in again."); }, 60000);
 
   async function initSync(){
     renderAcct();
