@@ -492,7 +492,7 @@
   <div class="sheet-body">
     <p class="muted small" style="margin-top:0">Sends personalized check-in texts to patients — one message, everyone gets their own. You never copy-paste a name again.</p>
     <ol class="steps" style="margin-top:14px">
-      <li><b>Add your patients</b><span class="small muted">Patients tab → <b>+ Add</b>. Enter their name, choose whether you text a parent, the patient, or either, and add the phone number(s). Have a list? Use <b>Import CSV</b>.</span></li>
+      <li><b>Add your patients</b><span class="small muted">Patients tab → <b>+ Add</b>. Enter their name, choose whether you text a parent, the patient, or either, and add the phone number(s). Have a list? Use <b>Import CSV</b>. The list is ordered newest first, so whoever you just entered is right at the top.</span></li>
       <li><b>Write your messages</b><span class="small muted">Messages tab → <b>+ Add</b>. Type it once and tap the blanks — <code class="var">{first name}</code>, <code class="var">{patient}</code>, <code class="var">{doctor}</code>, <code class="var">{office}</code> — they fill in for each person. Set the doctor/office names (and make your own blanks) in Settings.</span></li>
       <li><b>Send</b><span class="small muted">Send tab → pick a message → check who gets it → <b>Start sending</b>. On iPhone, each text opens in Messages ready to go — <b>tap the send arrow</b>. Messages go out as iMessage (blue) or a regular text (green) automatically — both deliver. On a Mac you can auto-send the whole batch (see below).</span></li>
     </ol>
@@ -576,9 +576,28 @@
       id:c.id||uid(),
       patientFirst:c.patientFirst||"", patientLast:initialOf(c.patientLast), patientPhone:c.patientPhone||"",
       guardianFirst:c.guardianFirst||"", guardianLast:initialOf(c.guardianLast), guardianPhone:c.guardianPhone||"",
-      type:c.type||"child", notes:c.notes||"", lastTexted:c.lastTexted||0
+      type:c.type||"child", notes:c.notes||"", lastTexted:c.lastTexted||0,
+      addedAt:c.addedAt || addedAtFromId(c.id) || 0
     }));
+    sortContacts(data.contacts);
     return data;
+  }
+  // Older saves have no addedAt. Ids are Date.now().toString(36) + 5 random chars,
+  // so the entry time can be recovered from the id itself.
+  function addedAtFromId(id){
+    if(!id || id.length<6) return 0;
+    const t=parseInt(String(id).slice(0,-5),36);
+    if(!isFinite(t) || t<1420070400000 || t>Date.now()+86400000) return 0;  // sanity: 2015 .. tomorrow
+    return t;
+  }
+  // Newest entries first, so you never have to remember who you just added.
+  // Same-moment entries (a CSV import) fall back to alphabetical within the batch.
+  function sortContacts(arr){
+    (arr||state.contacts).sort((a,b)=>
+      (b.addedAt||0)-(a.addedAt||0) ||
+      (a.patientFirst||"").localeCompare(b.patientFirst||"") ||
+      (a.patientLast||"").localeCompare(b.patientLast||""));
+    return arr||state.contacts;
   }
   function save(){ state.updatedAt = Date.now(); localStorage.setItem(KEY, JSON.stringify(state)); scheduleAutoSync(); }
 
@@ -759,12 +778,18 @@
       guardianPhone:normalizePhone($("#c_guardianPhone").value),
       type: cTypeVal,
       notes: $("#c_notes").value.trim(),
-      lastTexted: 0
+      lastTexted: 0,
+      addedAt: Date.now()
     };
     if(!rec.patientFirst){ return; }
-    if(id){ const i=state.contacts.findIndex(x=>x.id===id); rec.lastTexted=state.contacts[i].lastTexted||0; state.contacts[i]=rec; }
+    if(id){
+      const i=state.contacts.findIndex(x=>x.id===id);
+      rec.lastTexted=state.contacts[i].lastTexted||0;
+      rec.addedAt=state.contacts[i].addedAt||rec.addedAt;   // editing doesn't make a patient "new" again
+      state.contacts[i]=rec;
+    }
     else state.contacts.push(rec);
-    state.contacts.sort((a,b)=>a.patientFirst.localeCompare(b.patientFirst));
+    sortContacts();
     save(); contactDialog.close(); renderContacts(); toast(id?"Saved":"Patient added");
   });
   $("#deleteContactBtn").addEventListener("click",()=>{
@@ -806,6 +831,7 @@
             <div class="row" style="gap:8px"><span class="name">${esc(fullName(c.patientFirst,c.patientLast))}</span>${typePill(c.type)}</div>
             ${p}${g}
             ${c.lastTexted?`<div class="small" style="color:var(--ok);font-weight:600">Last texted: ${esc(sinceStr(c.lastTexted))}</div>`:""}
+            ${c.addedAt?`<div class="small faint">Added ${esc(sinceStr(c.addedAt))}</div>`:""}
             ${c.notes?`<div class="small faint" style="margin-top:3px">${esc(c.notes)}</div>`:""}
           </div>
           <button class="btn ghost sm edit">Edit</button>
@@ -1183,6 +1209,7 @@
         const pfHeader=(H[ci.pf]||"").toLowerCase();
         const pfIsFull = pfHeader.includes("name") && !pfHeader.includes("first");
         let added=0;
+        const importedAt=Date.now();   // one stamp for the batch, so it lands together at the top
         rows.slice(1).forEach(r=>{
           const g=(i)=>i>-1?(r[i]||"").trim():"";
           let pFirst=g(ci.pf), pLast=g(ci.pl);
@@ -1196,11 +1223,11 @@
             id:uid(), patientFirst:pFirst, patientLast:initialOf(pLast),
             patientPhone:normalizePhone(g(ci.pp)),
             guardianFirst:g(ci.gf), guardianLast:initialOf(g(ci.gl)), guardianPhone:normalizePhone(g(ci.gp)),
-            type, notes:g(ci.no)
+            type, notes:g(ci.no), lastTexted:0, addedAt:importedAt
           });
           added++;
         });
-        state.contacts.sort((a,b)=>a.patientFirst.localeCompare(b.patientFirst));
+        sortContacts();
         save(); renderContacts(); toast(`Imported ${added} patient${added===1?"":"s"}`);
       }catch(err){ toast("Sorry — couldn't read that CSV"); }
       $("#csvFile").value="";
