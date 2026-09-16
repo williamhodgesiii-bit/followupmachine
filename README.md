@@ -94,6 +94,25 @@ rest** (not per-user encryption); real compliance still requires the BAA + plan.
 Now every device just opens the app and signs in — no other setup. Before any
 *real* patient goes in, upgrade to the Supabase HIPAA plan and sign the BAA.
 
+### Can't sign in? 🔧
+
+Tap **"Trouble signing in?"** on the sign-in screen — it shows which project the
+app is pointing at and whether it answered, and **Test connection** re-checks on
+the spot. Match what it says to the list below.
+
+| What you see | What it actually means | Fix |
+|---|---|---|
+| **"Can't reach your Supabase project"** / **"Load failed"** | The phone never got an answer from Supabase. Your password is not the problem. | **Usually the project is paused** — free Supabase projects pause after ~1 week with no use. Go to [supabase.com](https://supabase.com) → your project → press **Restore/Resume**, wait ~2 min, sign in again. If it's already running, check `SUPABASE_URL` in Vercel matches the project exactly, then redeploy. |
+| **"Your Supabase project isn't answering (error 503)"** | Supabase answered, but the project is down/paused. | Same as above — restore the project, then retry. |
+| **"This app isn't connected to a database yet"** | `/api/config` handed the app nothing. | Add `SUPABASE_URL` + `SUPABASE_ANON_KEY` in Vercel → Settings → Environment Variables (tick **Production**), then **redeploy** — env var changes only take effect on a new deploy. |
+| **"That email or password isn't right"** | Supabase is up and rejected the credentials. | Supabase → **Authentication → Users** → the "…" menu on that user → send a recovery link or set a new password. Watch for the phone keyboard capitalising the first letter. |
+| **"This account was never confirmed"** | The user was added without **Auto Confirm User**. | Supabase → Authentication → Users → delete that user, **Add user** again with **Auto Confirm User** ticked. |
+| **"Email sign-in is switched off"** | The Email provider got disabled. | Supabase → Authentication → **Sign In / Providers → Email** → turn **Email ON**. Only *"Allow new users to sign up"* should be off. |
+| **"Couldn't load the sign-in library"** | The device can't reach the CDN at all. | Bad Wi‑Fi or a network filter — try cellular data, then reload. |
+
+Still stuck? Open the panel, tap **Copy details**, and send that text along — it
+says exactly how far the sign-in got.
+
 ---
 
 ## Optional: zero-tap on a Mac

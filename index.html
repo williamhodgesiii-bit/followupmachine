@@ -527,6 +527,17 @@
         <input id="gatePass" class="input" type="password" autocomplete="current-password" placeholder="password" /></label>
       <div id="gateError" class="warnbox" style="display:none;margin:0 0 10px"></div>
       <button class="btn primary block" id="gateSignIn">Sign in</button>
+      <div style="text-align:center;margin-top:10px">
+        <button class="btn ghost sm" id="gateDiagToggle" style="border:none;color:var(--muted);font-size:.8rem">Trouble signing in?</button>
+      </div>
+      <div id="gateDiag" style="display:none;margin-top:6px">
+        <div id="gateDiagBody" class="small muted" style="background:var(--surface-2);border:1px solid var(--border);border-radius:10px;padding:9px 11px;line-height:1.55;word-break:break-word"></div>
+        <div class="row wrap" style="margin-top:8px">
+          <button class="btn sm" id="gateTest">Test connection</button>
+          <button class="btn sm ghost" id="gateCopy">Copy details</button>
+        </div>
+        <p class="hint">“Load failed” means this device couldn't reach the database at all — it's almost never your password. Most often the Supabase project is paused and the admin just needs to press Restore.</p>
+      </div>
       <p class="hint" style="margin-top:12px">Accounts are created by your office admin. Everyone shares the same data, and all accounts sign out at midnight Central time.</p>
     </div>
   </div>
@@ -537,7 +548,7 @@
 <script>
 "use strict";
 (function(){
-  const VERSION = "1.3.0";
+  const VERSION = "1.3.1";
   const KEY = "fum.v1";
   const $ = (s,r=document)=>r.querySelector(s);
   const $$ = (s,r=document)=>Array.from(r.querySelectorAll(s));
@@ -1368,25 +1379,81 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
   const SUPABASE_URL = "";     // optional fallback; e.g. https://abcd1234.supabase.co
   const SUPABASE_ANON_KEY = ""; // optional fallback; Supabase → Project Settings → API → anon public
 
-  const SDK_URL = "https://esm.sh/@supabase/supabase-js@2";
+  // Two copies of the library: if one CDN is blocked or down, the other is tried.
+  const SDK_URLS = [
+    "https://esm.sh/@supabase/supabase-js@2",
+    "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"
+  ];
   const AUTH_DAY = KEY + ".authday";
   let sb=null, currentUser=null, signedIn=false, channel=null, pushTimer=null, midnightTimer=null;
 
+  // Everything we learn about why sign-in isn't working, shown under
+  // "Trouble signing in?" on the gate so nobody has to open a console.
+  const diag = { source:"", project:"", keyLen:0, sdk:"not loaded yet", reach:"not tested yet", error:"" };
+
+  // A pasted URL/key often arrives with a trailing slash, a stray space, or a
+  // line break — each of which breaks the request with an unhelpful "Load failed".
+  function cleanUrl(u){ return String(u||"").trim().replace(/\s+/g,"").replace(/^http:\/\//i,"https://").replace(/\/+$/,""); }
+  function cleanKey(k){ return String(k||"").trim().replace(/\s+/g,""); }
+  function projectOf(u){ try{ return new URL(u).hostname; }catch(e){ return u||""; } }
+
   function getConfig(){
     // 1) Vercel env vars via /api/config  2) hardcoded constants  3) this device's saved value
-    const url = (window.SUPABASE_URL || SUPABASE_URL || "");
-    const key = (window.SUPABASE_ANON_KEY || SUPABASE_ANON_KEY || "");
-    if(/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url) && key.length>20) return { url, key };
-    try{ const m=JSON.parse(localStorage.getItem(KEY+".sync"))||{}; if(m.url && m.key) return {url:m.url, key:m.key}; }catch(e){}
-    return null;
+    const pick=(u,k,src)=>{
+      u=cleanUrl(u); k=cleanKey(k);
+      if(/^https:\/\/[^\/\s]+\.[^\/\s]+$/.test(u) && k.length>20){
+        diag.source=src; diag.project=projectOf(u); diag.keyLen=k.length;
+        return { url:u, key:k };
+      }
+      return null;
+    };
+    let saved={}; try{ saved=JSON.parse(localStorage.getItem(KEY+".sync"))||{}; }catch(e){}
+    return pick(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, "Vercel environment variables")
+        || pick(SUPABASE_URL, SUPABASE_ANON_KEY, "built into the app")
+        || pick(window.SUPABASE_URL||SUPABASE_URL, window.SUPABASE_ANON_KEY||SUPABASE_ANON_KEY, "mixed setup")
+        || pick(saved.url, saved.key, "saved on this device")
+        || null;
   }
-  async function loadSDK(){ if(window.__sb) return window.__sb; window.__sb=await import(/* @vite-ignore */ SDK_URL); return window.__sb; }
+  async function loadSDK(){
+    if(window.__sb) return window.__sb;
+    let last=null;
+    for(const u of SDK_URLS){
+      try{ window.__sb=await import(/* @vite-ignore */ u); diag.sdk="loaded from "+projectOf(u); return window.__sb; }
+      catch(e){ last=e; diag.sdk="could not load from "+projectOf(u); }
+    }
+    throw last || new Error("Couldn't load the Supabase library");
+  }
   async function ensureClient(){
     if(sb) return sb;
     const cfg=getConfig(); if(!cfg) return null;
     const { createClient }=await loadSDK();
     sb=createClient(cfg.url, cfg.key, { auth:{ persistSession:true, autoRefreshToken:true } });
     return sb;
+  }
+
+  // ---- connection test: did the Supabase project answer AT ALL? ----
+  // Used only to explain a failure in plain English. Two endpoints, because a
+  // single blocked route shouldn't look like a dead project.
+  async function probeSupabase(){
+    const cfg=getConfig();
+    if(!cfg) return { kind:"noconfig" };
+    if(navigator.onLine===false) return { kind:"offline" };
+    let status=0, detail="";
+    for(const path of ["/auth/v1/health","/rest/v1/"]){
+      const ctl = ("AbortController" in window) ? new AbortController() : null;
+      const timer = ctl ? setTimeout(()=>ctl.abort(), 9000) : null;
+      try{
+        const r=await fetch(cfg.url+path, { headers:{ apikey:cfg.key }, cache:"no-store", signal: ctl?ctl.signal:undefined });
+        if(timer) clearTimeout(timer);
+        if(r.ok) return { kind:"ok", status:r.status };
+        status=r.status;                       // an error code is still an answer
+      }catch(e){
+        if(timer) clearTimeout(timer);
+        detail=String((e&&e.message)||e);
+      }
+    }
+    if(status) return { kind:(status===503||status===502||status===504||status===540)?"down":"httperror", status };
+    return { kind:"unreachable", detail };
   }
 
   // ---- Central-time helpers (auto sign-out at midnight America/Chicago) ----
@@ -1433,7 +1500,79 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
   }
 
   // ---- sign-in gate ----
-  function gateError(msg){ const el=$("#gateError"); if(!el) return; el.textContent=msg||""; el.style.display=msg?"":"none"; }
+  // msg = what went wrong, fix = what to do about it (shown smaller underneath).
+  function gateError(msg, fix){
+    const el=$("#gateError"); if(!el) return;
+    el.innerHTML = msg ? (esc(msg) + (fix?`<div style="font-weight:500;margin-top:5px">${esc(fix)}</div>`:"")) : "";
+    el.style.display = msg ? "" : "none";
+  }
+  function renderDiag(){
+    const el=$("#gateDiagBody"); if(!el) return;
+    const cfg=getConfig();
+    const rows=[
+      ["App version", VERSION],
+      ["Database settings", cfg ? ("found — from "+diag.source) : "MISSING (the app has no Supabase URL/key)"],
+      ["Project", diag.project||"—"],
+      ["Key", diag.keyLen?(diag.keyLen+" characters"):"—"],
+      ["Sign-in library", diag.sdk],
+      ["Connection test", diag.reach],
+      ["Last error", diag.error||"none"]
+    ];
+    el.innerHTML = rows.map(r=>`<div><span class="faint">${esc(r[0])}:</span> ${esc(r[1])}</div>`).join("");
+  }
+  // Turn a raw Supabase error into something a dental office can act on.
+  // Returns null when it's a network-level failure (the caller then runs a
+  // connection test and explains that instead).
+  function explainAuthError(err){
+    const raw=String((err&&err.message)||err||"");
+    const t=raw.toLowerCase();
+    if(/load failed|failed to fetch|networkerror|network request failed|fetch failed|network error/.test(t)) return null;
+    if(/invalid login credentials|invalid credentials/.test(t))
+      return ["That email or password isn't right.",
+              "Watch for autocorrect capitalising the first letter. Your admin can set a new password in Supabase → Authentication → Users."];
+    if(/email not confirmed|not confirmed/.test(t))
+      return ["This account was never confirmed, so Supabase won't let it in.",
+              "Admin: Supabase → Authentication → Users → delete this user and add it again with “Auto Confirm User” ticked."];
+    if(/email logins are disabled|provider is not enabled|signups not allowed|email provider/.test(t))
+      return ["Email sign-in is switched off for this project.",
+              "Admin: Supabase → Authentication → Sign In / Providers → Email → turn Email ON (only “Allow new users to sign up” should stay off)."];
+    if(/invalid api key|no api key|apikey|jwt/.test(t))
+      return ["The app's connection key is wrong or expired.",
+              "Admin: re-copy the anon public key from Supabase → Project Settings → API into Vercel, then redeploy."];
+    if(/rate limit|too many/.test(t))
+      return ["Too many sign-in tries — Supabase is making us wait.",
+              "Give it a minute, then try once more."];
+    if(/user not found/.test(t))
+      return ["There's no account with that email.",
+              "Admin: create it in Supabase → Authentication → Users → Add user."];
+    return [raw, ""];
+  }
+  // Runs the connection test and says, in plain English, what's broken.
+  async function networkAdvice(probe){
+    const p = probe || await probeSupabase();
+    diag.reach = ({
+      ok:"project answered — connection is fine",
+      offline:"this device is offline",
+      noconfig:"no Supabase URL/key in the app",
+      down:"project answered with error "+(p.status||""),
+      httperror:"project answered with error "+(p.status||""),
+      unreachable:"no answer at all"+(p.detail?(" ("+p.detail+")"):""),
+      timeout:"timed out"
+    })[p.kind] || p.kind;
+    renderDiag();
+    if(p.kind==="offline")
+      return ["This device is offline.", "Reconnect to Wi‑Fi or cellular data, then sign in again."];
+    if(p.kind==="noconfig")
+      return ["This app isn't connected to a database yet.",
+              "Admin: in Vercel → Settings → Environment Variables add SUPABASE_URL and SUPABASE_ANON_KEY, then redeploy."];
+    if(p.kind==="ok")
+      return ["The connection dropped part-way through signing in.", "Your project is up — tap Sign in once more."];
+    if(p.kind==="down"||p.kind==="httperror")
+      return [`Your Supabase project isn't answering (error ${p.status||"?"}).`,
+              "Usually it's paused. Admin: open supabase.com, pick this project, press Restore/Resume, wait about two minutes, then sign in again."];
+    return [`Can't reach your Supabase project${diag.project?" ("+diag.project+")":""}.`,
+            "Free Supabase projects pause themselves after about a week of no use — admin: open supabase.com and press Restore on the project. If it's already running, check SUPABASE_URL in Vercel matches it exactly and redeploy."];
+  }
   function showGate(){ $("#authGate").style.display="flex"; }
   function hideGate(){ $("#authGate").style.display="none"; }
   function renderAcct(){
@@ -1446,15 +1585,36 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
   async function signIn(){
     const email=$("#gateEmail").value.trim(), password=$("#gatePass").value;
     if(!email || !password){ gateError("Enter your email and password."); return; }
-    const client=await ensureClient();
-    if(!client){ gateError("This app isn't set up yet — ask your admin to add the Supabase details."); return; }
-    gateError(""); const btn=$("#gateSignIn"); btn.disabled=true; btn.textContent="Signing in…";
+    const btn=$("#gateSignIn"); btn.disabled=true; btn.textContent="Signing in…"; gateError("");
     try{
+      let client=null;
+      try{ client=await ensureClient(); }
+      catch(e){
+        diag.error=String((e&&e.message)||e); renderDiag();
+        gateError("Couldn't load the sign-in library.", "This device can't reach the internet, or a network filter is blocking it. Try cellular data instead of Wi‑Fi.");
+        return;
+      }
+      if(!client){
+        diag.error="No Supabase URL/key available"; renderDiag();
+        gateError("This app isn't connected to a database yet.",
+                  "Admin: in Vercel → Settings → Environment Variables add SUPABASE_URL and SUPABASE_ANON_KEY, then redeploy.");
+        return;
+      }
       const { data, error }=await client.auth.signInWithPassword({ email, password });
-      if(error){ gateError(error.message); return; }
+      if(error){
+        diag.error=String(error.message||error);
+        const said=explainAuthError(error);
+        if(said){ gateError(said[0], said[1]); renderDiag(); }
+        else { btn.textContent="Checking…"; const a=await networkAdvice(); gateError(a[0], a[1]); }
+        return;
+      }
+      diag.error=""; diag.reach="signed in fine";
       currentUser=data.user; localStorage.setItem(AUTH_DAY, centralDay());
       await enterApp();
-    }catch(e){ gateError("Couldn't reach the server — check your connection."); }
+    }catch(e){
+      diag.error=String((e&&e.message)||e);
+      const a=await networkAdvice(); gateError(a[0], a[1]);
+    }
     finally{ btn.disabled=false; btn.textContent="Sign in"; }
   }
   async function enterApp(){
@@ -1489,6 +1649,32 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
 
   $("#gateSignIn").addEventListener("click", signIn);
   $("#gatePass").addEventListener("keydown", e=>{ if(e.key==="Enter") signIn(); });
+  $("#gateEmail").addEventListener("keydown", e=>{ if(e.key==="Enter") $("#gatePass").focus(); });
+  { const t=$("#gateDiagToggle"), box=$("#gateDiag");
+    if(t && box) t.addEventListener("click", ()=>{
+      const open = box.style.display==="none" || !box.style.display;
+      box.style.display = open ? "block" : "none";
+      t.textContent = open ? "Hide details" : "Trouble signing in?";
+      if(open) renderDiag();
+    });
+  }
+  { const b=$("#gateTest");
+    if(b) b.addEventListener("click", async ()=>{
+      b.disabled=true; b.textContent="Testing…";
+      try{
+        const p=await probeSupabase(); const a=await networkAdvice(p);
+        gateError(p.kind==="ok" ? "" : a[0], p.kind==="ok" ? "" : a[1]);
+        if(p.kind==="ok") toast("Connection is fine — try signing in");
+      } finally { b.disabled=false; b.textContent="Test connection"; }
+    });
+  }
+  { const b=$("#gateCopy");
+    if(b) b.addEventListener("click", async ()=>{
+      const txt=($("#gateDiagBody").innerText||"").trim();
+      try{ await navigator.clipboard.writeText(txt); toast("Details copied"); }
+      catch(e){ toast("Couldn't copy — read them off the screen"); }
+    });
+  }
   { const b=$("#acctSignOut"); if(b) b.addEventListener("click", ()=>doSignOut()); }
   { const b=$("#logoutBtn"); if(b) b.addEventListener("click", ()=>doSignOut()); }
   // Belt-and-suspenders: even if the midnight timer is throttled/asleep, this
@@ -1496,15 +1682,29 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
   setInterval(()=>{ if(signedIn && localStorage.getItem(AUTH_DAY)!==centralDay()) doSignOut("Signed out for the night (midnight Central). Please sign in again."); }, 60000);
 
   async function initSync(){
-    renderAcct();
-    const client=await ensureClient().catch(()=>null);
-    if(!client){ gateError("Setup needed — add your Supabase details (see README)."); return; }
+    renderAcct(); renderDiag();
+    const client=await ensureClient().catch(e=>{ diag.error=String((e&&e.message)||e); return null; });
+    if(!client){
+      renderDiag();
+      if(!getConfig()) gateError("This app isn't connected to a database yet.",
+        "Admin: in Vercel → Settings → Environment Variables add SUPABASE_URL and SUPABASE_ANON_KEY, then redeploy (see README).");
+      else gateError("Couldn't load the sign-in library.", "Check this device's internet connection, then reload the page.");
+      return;
+    }
     try{
       const { data:{ session } }=await client.auth.getSession();
       if(session && session.user){
         if(localStorage.getItem(AUTH_DAY)!==centralDay()){ await doSignOut(); return; }
-        currentUser=session.user; await enterApp();
+        currentUser=session.user; await enterApp(); return;
       }
+    }catch(e){ diag.error=String((e&&e.message)||e); }
+    // Nobody's signed in: quietly check the project is actually reachable, so a
+    // paused/misconfigured project is explained BEFORE anyone types a password.
+    try{
+      const p=await probeSupabase();
+      if(p.kind!=="ok" && !$("#gateError").textContent.trim()){
+        const a=await networkAdvice(p); gateError(a[0], a[1]);
+      } else { await networkAdvice(p); }
     }catch(e){}
   }
 
