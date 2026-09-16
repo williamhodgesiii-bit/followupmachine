@@ -508,8 +508,10 @@
 </dialog>
 
 <!-- ============ SIGN-IN GATE ============ -->
-<div id="authGate" style="position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px">
-  <div style="width:100%;max-width:360px">
+<div id="authGate" style="position:fixed;inset:0;z-index:100;background:var(--bg);display:flex;flex-direction:column;align-items:center;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:calc(24px + var(--safe-t)) 24px calc(24px + var(--safe-b))">
+  <!-- margin:auto (not justify-content:center) so the card centres when it fits
+       and stays fully scrollable when it doesn't — otherwise the top gets cut off. -->
+  <div style="width:100%;max-width:360px;margin:auto 0">
     <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:16px">
       <svg viewBox="0 0 48 48" width="34" height="34" fill="none" aria-hidden="true">
         <rect x="5" y="8" width="38" height="27" rx="8" fill="var(--brand)"/>
@@ -536,7 +538,26 @@
           <button class="btn sm" id="gateTest">Test connection</button>
           <button class="btn sm ghost" id="gateCopy">Copy details</button>
         </div>
-        <p class="hint">“Load failed” means this device couldn't reach the database at all — it's almost never your password. Most often the Supabase project is paused and the admin just needs to press Restore.</p>
+        <p class="hint">“Load failed” or “can't reach” means this device never got an answer from the database — it's almost never your password. Most often the Supabase project is paused and the admin just needs to press Restore.</p>
+
+        <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+          <div class="small" style="font-weight:700;margin-bottom:6px">Still stuck? Two ways around it</div>
+          <button class="btn sm block" id="gateUseLocal" style="margin-bottom:8px">📱 Use on this device only</button>
+          <p class="hint" style="margin:0 0 12px">Start working right now with no database. Patients &amp; messages stay on this device only — not shared with the team, and not signed out at midnight. Back them up under Settings → Your data.</p>
+
+          <button class="btn sm block ghost" id="gateCfgToggle">🔌 Point the app at another project</button>
+          <div id="gateCfg" style="display:none;margin-top:8px">
+            <label class="field"><span>Supabase URL</span>
+              <input id="cfgUrl" class="input" type="url" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="https://yourproject.supabase.co" /></label>
+            <label class="field"><span>Anon public key</span>
+              <input id="cfgKey" class="input" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="eyJhbGciOi…" /></label>
+            <div class="row wrap">
+              <button class="btn sm primary" id="cfgSave">Save &amp; test</button>
+              <button class="btn sm ghost" id="cfgClear">Use built-in settings</button>
+            </div>
+            <p class="hint">Both are in Supabase → Project Settings → API. Saved on this device only — never the <b>service_role</b> key.</p>
+          </div>
+        </div>
       </div>
       <p class="hint" style="margin-top:12px">Accounts are created by your office admin. Everyone shares the same data, and all accounts sign out at midnight Central time.</p>
     </div>
@@ -1277,7 +1298,6 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
   $("#setDoctor").addEventListener("input",e=>{state.settings.doctor=e.target.value; save();});
   ["#setOffice","#setDoctor"].forEach(sel=>{ const el=$(sel); if(el) el.addEventListener("change",()=>toast("Saved ✓")); });
   $("#setCC").addEventListener("change",e=>{state.settings.cc=e.target.value; save();});
-  $("#verLine").textContent="Follow-Up Machine v"+VERSION+" · your data stays on this device";
 
   /* ---- custom variables manager ---- */
   let editingVarId=null;
@@ -1385,7 +1405,9 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
     "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"
   ];
   const AUTH_DAY = KEY + ".authday";
+  const DEVICE_ONLY = KEY + ".deviceonly";   // working without any database at all
   let sb=null, currentUser=null, signedIn=false, channel=null, pushTimer=null, midnightTimer=null;
+  function isDeviceOnly(){ try{ return localStorage.getItem(DEVICE_ONLY)==="1"; }catch(e){ return false; } }
 
   // Everything we learn about why sign-in isn't working, shown under
   // "Trouble signing in?" on the gate so nobody has to open a console.
@@ -1408,10 +1430,12 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
       return null;
     };
     let saved={}; try{ saved=JSON.parse(localStorage.getItem(KEY+".sync"))||{}; }catch(e){}
-    return pick(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, "Vercel environment variables")
+    // A project entered by hand on this device wins: it's the way out when the
+    // built-in one is paused or wrong and nobody can redeploy right now.
+    return pick(saved.url, saved.key, "entered on this device")
+        || pick(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, "Vercel environment variables")
         || pick(SUPABASE_URL, SUPABASE_ANON_KEY, "built into the app")
         || pick(window.SUPABASE_URL||SUPABASE_URL, window.SUPABASE_ANON_KEY||SUPABASE_ANON_KEY, "mixed setup")
-        || pick(saved.url, saved.key, "saved on this device")
         || null;
   }
   async function loadSDK(){
@@ -1576,10 +1600,27 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
   function showGate(){ $("#authGate").style.display="flex"; }
   function hideGate(){ $("#authGate").style.display="none"; }
   function renderAcct(){
+    { const v=$("#verLine"); if(v) v.textContent="Follow-Up Machine v"+VERSION+(isDeviceOnly()?" · device-only mode":" · shared with your team"); }
     const el=$("#acctStatus"); if(!el) return;
+    if(isDeviceOnly()){
+      el.innerHTML = `<span style="color:var(--warn);font-weight:700">● Device-only mode</span> — patients &amp; messages are saved on <b>this device only</b>, not shared with the team and not signed out at midnight. Back them up below. Tap <b>Log out</b> up top to go back to team sign-in.`;
+      return;
+    }
     el.innerHTML = (signedIn && currentUser)
       ? `<span style="color:var(--ok);font-weight:700">● Signed in</span> · ${esc(currentUser.email||"")}`
       : `<span class="faint">Not signed in.</span>`;
+  }
+  function enterDeviceOnly(){
+    localStorage.setItem(DEVICE_ONLY,"1");
+    signedIn=false; currentUser=null;
+    clearTimeout(midnightTimer);            // nothing to sign out of, and the only copy lives here
+    state=load(); selection={}; renderAll(); hideGate(); gateError("");
+    toast("Device-only mode — data stays on this device");
+  }
+  function leaveDeviceOnly(){
+    localStorage.removeItem(DEVICE_ONLY);
+    renderAll(); showGate();
+    gateError("Back to team sign-in.", "What you added in device-only mode is still on this device — sign in and it uploads to the team if it's newer. To wipe it, use Settings → Your data → Erase.");
   }
 
   async function signIn(){
@@ -1592,20 +1633,20 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
       catch(e){
         diag.error=String((e&&e.message)||e); renderDiag();
         gateError("Couldn't load the sign-in library.", "This device can't reach the internet, or a network filter is blocking it. Try cellular data instead of Wi‑Fi.");
-        return;
+        openDiag(); return;
       }
       if(!client){
         diag.error="No Supabase URL/key available"; renderDiag();
         gateError("This app isn't connected to a database yet.",
-                  "Admin: in Vercel → Settings → Environment Variables add SUPABASE_URL and SUPABASE_ANON_KEY, then redeploy.");
-        return;
+                  "Admin: in Vercel → Settings → Environment Variables add SUPABASE_URL and SUPABASE_ANON_KEY, then redeploy — or use the buttons below.");
+        openDiag(); return;
       }
       const { data, error }=await client.auth.signInWithPassword({ email, password });
       if(error){
         diag.error=String(error.message||error);
         const said=explainAuthError(error);
         if(said){ gateError(said[0], said[1]); renderDiag(); }
-        else { btn.textContent="Checking…"; const a=await networkAdvice(); gateError(a[0], a[1]); }
+        else { btn.textContent="Checking…"; const a=await networkAdvice(); gateError(a[0], a[1]); openDiag(); }
         return;
       }
       diag.error=""; diag.reach="signed in fine";
@@ -1613,12 +1654,12 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
       await enterApp();
     }catch(e){
       diag.error=String((e&&e.message)||e);
-      const a=await networkAdvice(); gateError(a[0], a[1]);
+      const a=await networkAdvice(); gateError(a[0], a[1]); openDiag();
     }
     finally{ btn.disabled=false; btn.textContent="Sign in"; }
   }
   async function enterApp(){
-    signedIn=true; $("#gatePass").value="";
+    signedIn=true; localStorage.removeItem(DEVICE_ONLY); $("#gatePass").value="";
     try{
       const { data }=await sb.from("workspace").select("data").eq("id","default").maybeSingle();
       const remote = data && data.data;
@@ -1630,6 +1671,9 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
     await subscribeRealtime(); armMidnight(); renderAll(); hideGate();
   }
   async function doSignOut(reason){
+    // In device-only mode there is no server copy, so "log out" just returns to
+    // the sign-in screen — wiping would destroy the only copy of their work.
+    if(isDeviceOnly()){ leaveDeviceOnly(); return; }
     try{ if(signedIn && sb) await pushWorkspace(); }catch(e){}   // flush the latest to the shared workspace BEFORE wiping local
     try{ if(channel){ await sb.removeChannel(channel); channel=null; } }catch(e){}
     try{ if(sb) await sb.auth.signOut(); }catch(e){}
@@ -1668,6 +1712,42 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
       } finally { b.disabled=false; b.textContent="Test connection"; }
     });
   }
+  { const b=$("#gateUseLocal"); if(b) b.addEventListener("click", enterDeviceOnly); }
+  { const t=$("#gateCfgToggle"), box=$("#gateCfg");
+    if(t && box) t.addEventListener("click", ()=>{
+      const open = box.style.display==="none" || !box.style.display;
+      box.style.display = open ? "block" : "none";
+      if(open){
+        let saved={}; try{ saved=JSON.parse(localStorage.getItem(KEY+".sync"))||{}; }catch(e){}
+        $("#cfgUrl").value = saved.url || window.SUPABASE_URL || "";
+        $("#cfgKey").value = saved.key || "";
+        $("#cfgUrl").focus();
+      }
+    });
+  }
+  { const b=$("#cfgSave");
+    if(b) b.addEventListener("click", async ()=>{
+      const url=cleanUrl($("#cfgUrl").value), key=cleanKey($("#cfgKey").value);
+      if(!/^https:\/\/[^\/\s]+\.[^\/\s]+$/.test(url)){ gateError("That doesn't look like a Supabase URL.", "It should look like https://yourproject.supabase.co — copy it from Project Settings → API."); return; }
+      if(key.length<20){ gateError("That anon key looks too short.", "Copy the whole “anon public” key from Project Settings → API."); return; }
+      if(/^sb_secret|service_role/.test(key) || key.length>1200){ gateError("That looks like a secret key.", "Use the anon public key — the secret one must never go in the app."); return; }
+      localStorage.setItem(KEY+".sync", JSON.stringify({url,key}));
+      sb=null; signedIn=false; currentUser=null;                 // rebuild against the new project
+      b.disabled=true; b.textContent="Testing…";
+      try{
+        const p=await probeSupabase();
+        if(p.kind==="ok"){ gateError(""); toast("Connected — now sign in"); await networkAdvice(p); $("#gateCfg").style.display="none"; }
+        else { const a=await networkAdvice(p); gateError(a[0], a[1]); }
+      } finally { b.disabled=false; b.textContent="Save & test"; }
+    });
+  }
+  { const b=$("#cfgClear");
+    if(b) b.addEventListener("click", ()=>{
+      localStorage.removeItem(KEY+".sync");
+      sb=null; $("#cfgUrl").value=window.SUPABASE_URL||""; $("#cfgKey").value="";
+      gateError(""); toast("Back to the built-in settings"); initSync();
+    });
+  }
   { const b=$("#gateCopy");
     if(b) b.addEventListener("click", async ()=>{
       const txt=($("#gateDiagBody").innerText||"").trim();
@@ -1681,8 +1761,14 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
   // checks the Central date every minute and signs out once it rolls past midnight.
   setInterval(()=>{ if(signedIn && localStorage.getItem(AUTH_DAY)!==centralDay()) doSignOut("Signed out for the night (midnight Central). Please sign in again."); }, 60000);
 
+  function openDiag(){
+    const box=$("#gateDiag"), t=$("#gateDiagToggle");
+    if(box && box.style.display!=="block"){ box.style.display="block"; if(t) t.textContent="Hide details"; }
+    renderDiag();
+  }
   async function initSync(){
     renderAcct(); renderDiag();
+    if(isDeviceOnly()){ renderAll(); hideGate(); return; }   // no database by choice
     const client=await ensureClient().catch(e=>{ diag.error=String((e&&e.message)||e); return null; });
     if(!client){
       renderDiag();
@@ -1704,6 +1790,7 @@ Liam,C,(555) 222-3333,Dana,C,(555) 444-5555,both,Text either`;
       const p=await probeSupabase();
       if(p.kind!=="ok" && !$("#gateError").textContent.trim()){
         const a=await networkAdvice(p); gateError(a[0], a[1]);
+        openDiag();   // put the way out (device-only / another project) right in front of them
       } else { await networkAdvice(p); }
     }catch(e){}
   }

@@ -110,6 +110,24 @@ the spot. Match what it says to the list below.
 | **"Email sign-in is switched off"** | The Email provider got disabled. | Supabase → Authentication → **Sign In / Providers → Email** → turn **Email ON**. Only *"Allow new users to sign up"* should be off. |
 | **"Couldn't load the sign-in library"** | The device can't reach the CDN at all. | Bad Wi‑Fi or a network filter — try cellular data, then reload. |
 
+#### Two ways around it while the database is down
+
+Both live under **"Trouble signing in?"** on the sign-in screen, so nobody is
+locked out waiting on an admin:
+
+- **📱 Use on this device only** — the app works immediately with no database at
+  all. Patients and messages are saved on that one device: not shared with the
+  team, and *not* wiped at midnight (it's the only copy — back it up under
+  **Settings → Your data**). Tap **Log out** at the top to return to team
+  sign-in; nothing you added is deleted, and it uploads to the team the next
+  time you sign in if it's the newer copy.
+- **🔌 Point the app at another project** — paste a Supabase URL + anon public
+  key to switch this device onto a different (or freshly created) project,
+  without touching Vercel or redeploying. Handy when the old project is gone:
+  make a new free project, run `supabase-setup.sql`, add your staff logins, and
+  paste the new details in. **Use built-in settings** puts it back to whatever
+  Vercel is serving.
+
 Still stuck? Open the panel, tap **Copy details**, and send that text along — it
 says exactly how far the sign-in got.
 
@@ -130,7 +148,9 @@ says exactly how far the sign-in got.
 ## Your data & privacy
 
 - Signed **out**, the app shows nothing and holds no patient data on the device
-  (it's cleared on sign-out, and nightly at midnight Central).
+  (it's cleared on sign-out, and nightly at midnight Central). The one exception
+  is **device-only mode**, where the device *is* the only copy — so nothing is
+  cleared there until you erase it under Settings → Your data.
 - Signed **in**, the shared data lives in your Supabase project (encrypted at
   rest by Supabase) and is cached on the device for the session.
 - We store only a **last initial**, not a full last name.
