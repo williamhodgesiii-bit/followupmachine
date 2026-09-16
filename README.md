@@ -110,6 +110,30 @@ the spot. Match what it says to the list below.
 | **"Email sign-in is switched off"** | The Email provider got disabled. | Supabase → Authentication → **Sign In / Providers → Email** → turn **Email ON**. Only *"Allow new users to sign up"* should be off. |
 | **"Couldn't load the sign-in library"** | The device can't reach the CDN at all. | Bad Wi‑Fi or a network filter — try cellular data, then reload. |
 
+#### Stopping it from pausing again 🌙
+
+Supabase's **free plan pauses a project after 7 days with no activity, and there
+is no switch to turn that off** — removing auto-pause is a Pro-plan ($25/mo)
+feature. What you *can* do is make sure the project never reaches 7 idle days.
+
+This repo does that for you: **`api/keepalive.js`** runs a real query against
+the database, and **`vercel.json`** schedules it once a day via Vercel Cron. It
+needs no setup beyond the `SUPABASE_URL` / `SUPABASE_ANON_KEY` variables you
+already added — just redeploy. Open **`/api/keepalive`** in a browser any time
+to ping it by hand; it answers `{"ok":true}` when the project is awake and
+explains itself when it isn't.
+
+Two caveats worth knowing: Vercel's free Hobby plan runs cron jobs **once a
+day** (plenty for a 7-day window), and a keep-alive ping is a workaround rather
+than a supported feature — Supabase could change what counts as activity. In
+practice, an office using the app on normal workdays also keeps it awake by
+itself; the pause happens during quiet stretches like a holiday week.
+
+If you'd rather not depend on it at all, the free tiers worth a look are
+**Firebase** (no auto-pause, and Google signs a **BAA at no cost** — which also
+solves the HIPAA problem above) and **Neon** (sleeps but wakes itself in under a
+second, with no manual Restore). Say the word and I'll switch the app over.
+
 #### Two ways around it while the database is down
 
 Both live under **"Trouble signing in?"** on the sign-in screen, so nobody is
@@ -169,6 +193,7 @@ says exactly how far the sign-in got.
 |------|-----------|
 | `index.html` | The whole app |
 | `api/config.js` | Vercel function that feeds your Supabase env vars to the app |
+| `api/keepalive.js`, `vercel.json` | Daily ping that stops the free Supabase project auto-pausing |
 | `manifest.webmanifest`, `sw.js`, `icons/` | Installable / app-like |
 | `supabase-setup.sql` | One-time database setup for shared team sync |
 | `patient-import-template.csv` | Sample layout for importing patients |
