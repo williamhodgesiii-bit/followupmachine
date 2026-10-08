@@ -1,0 +1,62 @@
+# Backup keep-alive for the free Supabase project (the primary is Vercel Cron
+# → /api/keepalive). Two independent schedulers means one hiccup can't let the
+# project reach 7 idle days and pause.
+#
+# Setup — GitHub repo → Settings → Secrets and variables → Actions:
+#   Secrets:  SUPABASE_URL, SUPABASE_ANON_KEY   (same values as in Vercel)
+#             SUPABASE_ACCESS_TOKEN (optional)  → auto-restores if it ever pauses
+#   Variable: SITE_URL (optional) e.g. https://your-app.vercel.app
+#             → also triggers the Vercel /api/keepalive endpoint
+#
+# If the project doesn't answer, the run fails and GitHub emails you.
+# Run it by hand any time: Actions → Supabase keep-alive → Run workflow.
+
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+    - cron: "17 15 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SITE_URL: ${{ vars.SITE_URL }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Ping Supabase (and restore if paused)
+        if: ${{ env.SUPABASE_URL != '' }}
+        run: node lib/keepalive.js
+
+      - name: Ping the Vercel keep-alive endpoint
+        if: ${{ always() && env.SITE_URL != '' }}
+        run: curl -fsS --max-time 30 "${SITE_URL%/}/api/keepalive"
+
+      - name: Warn if nothing is configured
+        if: ${{ env.SUPABASE_URL == '' && env.SITE_URL == '' }}
+        run: |
+          echo "::error::Add SUPABASE_URL + SUPABASE_ANON_KEY secrets (or a SITE_URL variable) so this workflow can keep the database awake."
+          exit 1
+
+      # GitHub switches off scheduled workflows after 60 days without repo
+      # activity. Re-enabling it from inside the run resets that clock.
+      - name: Keep this schedule from being auto-disabled
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X PUT "repos/${{ github.repository }}/actions/workflows/supabase-keepalive.yml/enable" || true

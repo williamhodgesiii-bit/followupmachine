@@ -123,6 +123,23 @@ already added — just redeploy. Open **`/api/keepalive`** in a browser any time
 to ping it by hand; it answers `{"ok":true}` when the project is awake and
 explains itself when it isn't.
 
+**Belt and braces — three layers so it never stays paused:**
+
+1. **Vercel Cron** (above) pings once a day.
+2. **GitHub Actions backup** — `.github/workflows/supabase-keepalive.yml` pings
+   twice a day, independently of Vercel. In GitHub → repo → **Settings →
+   Secrets and variables → Actions**, add secrets **`SUPABASE_URL`** and
+   **`SUPABASE_ANON_KEY`** (same values as Vercel) and/or a variable
+   **`SITE_URL`** (your Vercel address, e.g. `https://your-app.vercel.app`).
+   If the database ever stops answering, the run fails and GitHub emails you.
+   Test it: **Actions → Supabase keep-alive → Run workflow**.
+3. **Auto-restore** — create a token at
+   [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens)
+   and save it as **`SUPABASE_ACCESS_TOKEN`** (in Vercel env vars and/or as a
+   GitHub secret). Then, if the project is ever found paused anyway, the
+   keep-alive presses **Restore** for you automatically. Treat this token like a
+   password — it controls your whole Supabase account.
+
 Two caveats worth knowing: Vercel's free Hobby plan runs cron jobs **once a
 day** (plenty for a 7-day window), and a keep-alive ping is a workaround rather
 than a supported feature — Supabase could change what counts as activity. In
@@ -193,7 +210,7 @@ says exactly how far the sign-in got.
 |------|-----------|
 | `index.html` | The whole app |
 | `api/config.js` | Vercel function that feeds your Supabase env vars to the app |
-| `api/keepalive.js`, `vercel.json` | Daily ping that stops the free Supabase project auto-pausing |
+| `api/keepalive.js`, `vercel.json`, `lib/keepalive.js`, `.github/workflows/supabase-keepalive.yml` | Scheduled pings (Vercel daily + GitHub twice daily) that stop the free Supabase project auto-pausing, and auto-restore it if it ever does |
 | `manifest.webmanifest`, `sw.js`, `icons/` | Installable / app-like |
 | `supabase-setup.sql` | One-time database setup for shared team sync |
 | `patient-import-template.csv` | Sample layout for importing patients |
